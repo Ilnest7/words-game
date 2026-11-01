@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Цепочка Слов</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Игра в Слова: Цепочка</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4">
@@ -11,35 +12,58 @@
         <p class="text-emerald-400 font-semibold mb-4">Очки: <span id="score">0</span></p>
         
         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
-            <p class="text-sm text-slate-400">Слово: <b id="lastWord" class="text-white">...</b></p>
+            <p class="text-sm text-slate-400">Слово: <b id="lastWord" class="text-white text-lg">АРБУЗ</b></p>
             <p class="text-sm text-slate-400 mt-2">Буква для хода:</p>
-            <span id="targetLetter" class="text-4xl font-extrabold text-rose-500 uppercase">...</span>
+            <span id="targetLetter" class="text-4xl font-extrabold text-rose-500 uppercase">З</span>
         </div>
 
-        <div id="msg" class="text-sm h-6 mb-3 font-medium text-slate-300">Загрузка словаря...</div>
+        <div id="msg" class="text-sm h-6 mb-3 font-medium text-slate-300">Робот сходил! Ваша очередь.</div>
 
         <div class="flex gap-2 mb-4">
-            <input type="text" id="input" placeholder="Введите слово..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-sky-400" disabled>
-            <button onclick="play()" id="btn" class="bg-sky-400 text-slate-950 px-4 py-2 rounded-lg font-bold hover:bg-sky-300 transition cursor-pointer" disabled>ОК</button>
+            <input type="text" id="input" placeholder="Введите слово..." autocomplete="off" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-sky-400">
+            <button onclick="play()" id="btn" class="bg-sky-400 text-slate-950 px-4 py-2 rounded-lg font-bold hover:bg-sky-300 transition cursor-pointer">ОК</button>
         </div>
 
-        <div id="history" class="bg-slate-950 p-3 rounded-lg h-28 overflow-y-auto flex flex-wrap gap-2 justify-center border border-slate-800 text-sm"></div>
+        <div id="history" class="bg-slate-950 p-3 rounded-lg h-32 overflow-y-auto flex flex-wrap gap-2 justify-center border border-slate-800 text-sm">
+            <span class="px-2.5 py-1 bg-slate-900 rounded border border-emerald-500/30 text-emerald-400">🤖 АРБУЗ</span>
+        </div>
+        
         <button onclick="init()" class="w-full mt-4 bg-slate-800 text-slate-300 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">🔄 Заново</button>
     </div>
 
     <script>
-        let dict = new Set(), used = new Set(), current = "", letter = "", score = 0;
+        // Большая встроенная база существительных для стабильной работы на GitHub Pages
+        const dictionary = [
+            "АКВАРЕЛЬ", "АРБУЗ", "АНАНАС", "АВТОБУС", "АПЕЛЬСИН", "АКВАРИУМ", "АСТРА", "АКТОР",
+            "БАНАН", "БАРАБАН", "БОРЩ", "БИЛЕТ", "БАБОЧКА", "БАТОН", "БЕГЕМОТ", "БАРС",
+            "ВЕРТОЛЕТ", "ВОЛК", "ВОРОНА", "ВРЕМЯ", "ВЕЛОСИПЕД", "ВЕТЕР", "ВИНОГРАД", "ВУЛКАН",
+            "ГОРОД", "ГИГАНТ", "ГИТАРА", "ГОЛУБЬ", "ГРИБ", "ГАРАЖ", "ГРУША", "ГОРДОСТЬ",
+            "ДОМ", "ДЕРЕВО", "ДОРОГА", "ДОЖДЬ", "ДИВАН", "ДРАКОН", "ДРОЗД", "ДЯТЕЛ",
+            "ЕЖИК", "ЕЛЬ", "ЕНОТ", "ЕВРОПА", "ЕДА", "ЕДИНОРОГ",
+            "ЖИРАФ", "ЖУК", "ЖЕЛУДЬ", "ЖИЗНЬ", "ЖУРНАЛ",
+            "ЗОНТИК", "ЗЕБРА", "ЗИМА", "ЗВЕЗДА", "ЗОЛОТО", "ЗАЯЦ", "ЗАМОК", "ЗВОНОК",
+            "ИГРА", "ИГОЛКА", "ИЗБА", "ИЗЮМ", "ИНДЮК", "ИНТЕРНЕТ", "ЙОГУРТ", "ЙОД",
+            "КОМПЬЮТЕР", "КИТ", "КОРАБЛЬ", "КОШКА", "КАКТУС", "КАРАНДАШ", "КРОВАТЬ", "КОСМОС",
+            "ЛИМОН", "ЛОШАДЬ", "ЛЯГУШКА", "ЛУНА", "ЛИСА", "ЛОЖКА", "ЛИСТ", "ЛАМПА",
+            "МАШИНА", "МЕДВЕДЬ", "МОЛОКО", "МОСТ", "МЯЧ", "МЕТРО", "МУЗЫКА", "МАЯК",
+            "НОСОРОГ", "НОЖНИЦЫ", "НОЧЬ", "НЕБО", "НОТА", "НОВОСТЬ", "НОСОК",
+            "ОБЛАКО", "ОКНО", "ОГУРЕЦ", "ОРЕЛ", "ОСТРОВ", "ОКЕАН", "ОЛЕНЬ", "ОСЕНЬ",
+            "ПЛАНЕТА", "ПОЕЗД", "ПОПУГАЙ", "ПАЛЬМА", "ПИСЬМО", "ПОМИДОР", "ПТИЦА", "ПОДАРОК",
+            "РУЧКА", "РЕКА", "РЫБА", "РАДУГА", "РАКЕТА", "РОБОТ", "РОЗА", "РЮКЗАК",
+            "СОЛНЦЕ", "СЛОН", "СОБАКА", "СТУЛ", "СТОЛ", "САМОЛЕТ", "СЫР", "СНЕГ",
+            "ТЕЛЕФОН", "ТЕТРАДЬ", "ТИГР", "ТОРТ", "ТРАКТОР", "ТУЧА", "ТРАВА", "ТЕАТР",
+            "УЧЕНИК", "УТКА", "УЛИТКА", "УЖИН", "УТРО", "УТЮГ", "УДОЧКА",
+            "ФЛАГ", "ФОНАРЬ", "ФОТОГРАФИЯ", "ФИЛИН", "ФРУКТ", "ХЛЕБ", "ХОМЯК", "ХВОСТ",
+            "ЦВЕТОК", "ЦАПЛЯ", "ЦИРК", "ЦЕНТР", "ЧАЙНИК", "ЧАСЫ", "ЧЕРЕПАХА", "ЧЕМОДАН",
+            "ШАРФ", "ШКОЛА", "ШОКОЛАД", "ШАПКА", "ШКАФ", "ЩЕКА", "ЩУКА", "ЩЕНОК",
+            "ЭКРАН", "ЭТАЖ", "ЮБКА", "ЮРТА", "ЮПИТЕР", "ЯБЛОКО", "ЯКОРЬ", "ЯЗЫК", "ЯНВАРЬ"
+        ];
 
-        // Загружаем внешнюю большую базу русских существительных (около 30 000+ слов)
-        fetch("https://raw.githubusercontent.com/danakt/russian-words/master/words.json")
-            .then(res => res.json())
-            .then(data => {
-                // Фильтруем только существительные в верхнем регистре без дефисов
-                dict = new Set(data.filter(w => w.length > 2 && !w.includes("-")).map(w => w.toUpperCase()));
-                init();
-                document.getElementById('input').disabled = false;
-                document.getElementById('btn').disabled = false;
-            });
+        let dict = new Set(dictionary);
+        let used = new Set();
+        let current = "АРБУЗ";
+        let letter = "З";
+        let score = 0;
 
         function getLetter(w) {
             let i = w.length - 1;
@@ -48,7 +72,6 @@
         }
 
         function init() {
-            if (dict.size === 0) return;
             const arr = Array.from(dict);
             current = arr[Math.floor(Math.random() * arr.length)];
             letter = getLetter(current);
@@ -58,8 +81,10 @@
             document.getElementById('score').innerText = score;
             document.getElementById('lastWord').innerText = current;
             document.getElementById('targetLetter').innerText = letter;
-            document.getElementById('msg').innerText = "Ваш ход!";
-            document.getElementById('history').innerHTML = `<span class="px-2 py-1 bg-slate-900 rounded border border-emerald-500/30 text-emerald-400">🤖 ${current}</span>`;
+            document.getElementById('msg').innerText = "Новая игра! Ваш ход.";
+            document.getElementById('msg').className = "text-sm h-6 mb-3 font-medium text-slate-300";
+            document.getElementById('history').innerHTML = `<span class="px-2.5 py-1 bg-slate-900 rounded border border-emerald-500/30 text-emerald-400">🤖 ${current}</span>`;
+            document.getElementById('input').value = "";
         }
 
         function play() {
@@ -69,9 +94,27 @@
             input.value = "";
 
             if (!word) return;
-            if (used.has(word)) return msg.innerText = "Это слово уже было!";
-            if (!dict.has(word)) return msg.innerText = "Такого слова нет в словаре!";
-            if (word[0] !== letter) return msg.innerText = `Нужно на букву "${letter}"!`;
+
+            if (word.includes("-")) {
+                msg.innerText = "Слова с дефисом запрещены!";
+                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                return;
+            }
+            if (used.has(word)) {
+                msg.innerText = "Это слово уже было в игре!";
+                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                return;
+            }
+            if (word[0] !== letter) {
+                msg.innerText = `Слово должно начинаться на букву "${letter}"!`;
+                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                return;
+            }
+            if (!dict.has(word)) {
+                msg.innerText = "Я не знаю такого слова в словаре!";
+                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                return;
+            }
 
             used.add(word);
             score += 10;
@@ -83,6 +126,7 @@
             document.getElementById('lastWord').innerText = current;
             document.getElementById('targetLetter').innerText = letter;
             msg.innerText = "Робот думает...";
+            msg.className = "text-sm h-6 mb-3 font-medium text-sky-400";
 
             setTimeout(botTurn, 400);
         }
@@ -90,7 +134,8 @@
         function botTurn() {
             const valid = Array.from(dict).filter(w => w.startsWith(letter) && !used.has(w));
             if (valid.length === 0) {
-                document.getElementById('msg').innerText = "🎉 Вы победили! У бота кончились слова.";
+                document.getElementById('msg').innerText = "🎉 Вы победили! У робота кончились слова.";
+                document.getElementById('msg').className = "text-sm h-6 mb-3 font-medium text-emerald-400";
                 return;
             }
             const botWord = valid[Math.floor(Math.random() * valid.length)];
@@ -101,16 +146,21 @@
             document.getElementById('lastWord').innerText = current;
             document.getElementById('targetLetter').innerText = letter;
             document.getElementById('msg').innerText = "Ваш ход!";
+            document.getElementById('msg').className = "text-sm h-6 mb-3 font-medium text-slate-300";
             addBadge(botWord, 'text-rose-400 border-rose-500/30');
         }
 
         function addBadge(w, cls) {
             const h = document.getElementById('history');
-            h.innerHTML += `<span class="px-2 py-1 bg-slate-900 rounded border ${cls}">${w}</span>`;
+            h.innerHTML += `<span class="px-2.5 py-1 bg-slate-900 rounded border ${cls}">${w}</span>`;
             h.scrollTop = h.scrollHeight;
         }
 
-        document.getElementById('input').addEventListener('keypress', e => e.key === 'Enter' && play());
+        document.getElementById('input').addEventListener('keypress', e => {
+            if (e.key === 'Enter') play();
+        });
+
+        init();
     </script>
 </body>
 </html>
