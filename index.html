@@ -3,36 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Игра в Слова: Цепочка</title>
+    <title>Цепочка Слов</title>
+    <!-- Подключаем внешний красивый шрифт Inter от Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Подключаем внешнюю библиотеку стилей Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
 <body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-slate-900 p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-800 text-center">
-        <h1 class="text-2xl font-bold text-sky-400 mb-2">Цепочка Слов</h1>
-        <p class="text-emerald-400 font-semibold mb-4">Очки: <span id="score">0</span></p>
+    <div class="bg-slate-900/90 backdrop-blur-md p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-800 text-center">
+        <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-indigo-500 mb-1">Цепочка Слов</h1>
+        <p class="text-slate-400 text-sm mb-4">Игра с искусственным интеллектом</p>
         
-        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
-            <p class="text-sm text-slate-400">Слово: <b id="lastWord" class="text-white text-lg">АРБУЗ</b></p>
-            <p class="text-sm text-slate-400 mt-2">Буква для хода:</p>
-            <span id="targetLetter" class="text-4xl font-extrabold text-rose-500 uppercase">З</span>
-        </div>
-
-        <div id="msg" class="text-sm h-6 mb-3 font-medium text-slate-300">Робот сходил! Ваша очередь.</div>
-
-        <div class="flex gap-2 mb-4">
-            <input type="text" id="input" placeholder="Введите слово..." autocomplete="off" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-sky-400">
-            <button onclick="play()" id="btn" class="bg-sky-400 text-slate-950 px-4 py-2 rounded-lg font-bold hover:bg-sky-300 transition cursor-pointer">ОК</button>
-        </div>
-
-        <div id="history" class="bg-slate-950 p-3 rounded-lg h-32 overflow-y-auto flex flex-wrap gap-2 justify-center border border-slate-800 text-sm">
-            <span class="px-2.5 py-1 bg-slate-900 rounded border border-emerald-500/30 text-emerald-400">🤖 АРБУЗ</span>
+        <div class="flex justify-center items-center gap-2 mb-6">
+            <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-4 py-1.5 rounded-full text-sm font-semibold">
+                Очки: <span id="score">0</span>
+            </span>
         </div>
         
-        <button onclick="init()" class="w-full mt-4 bg-slate-800 text-slate-300 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">🔄 Заново</button>
+        <div class="bg-slate-950 p-5 rounded-xl border border-slate-800/80 mb-5 shadow-inner">
+            <p class="text-xs tracking-wider uppercase text-slate-400 mb-1">Предыдущее слово</p>
+            <b id="lastWord" class="text-white text-xl tracking-wide">АРБУЗ</b>
+            <div class="my-3 border-t border-slate-800"></div>
+            <p class="text-xs tracking-wider uppercase text-slate-400 mb-1">Нужна буква</p>
+            <span id="targetLetter" class="text-5xl font-black text-rose-500 uppercase drop-shadow-[0_0_15px_rgba(244,63,94,0.3)]">З</span>
+        </div>
+
+        <div id="msg" class="text-sm h-6 mb-4 font-medium text-slate-300 transition-all">Робот сходил! Ваша очередь.</div>
+
+        <div class="flex gap-2 mb-5">
+            <input type="text" id="input" placeholder="Введите слово..." autocomplete="off" class="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 transition">
+            <button onclick="play()" id="btn" class="bg-gradient-to-r from-sky-400 to-cyan-500 text-slate-950 px-5 py-3 rounded-xl font-bold hover:opacity-90 transition cursor-pointer shadow-lg shadow-sky-500/20">ОК</button>
+        </div>
+
+        <div id="history" class="bg-slate-950 p-3 rounded-xl h-36 overflow-y-auto flex flex-wrap gap-2 justify-center border border-slate-800/80 text-sm mb-4 scrollbar-thin">
+            <span class="px-3 py-1 bg-slate-900 rounded-lg border border-emerald-500/30 text-emerald-400 text-xs font-medium">🤖 АРБУЗ</span>
+        </div>
+        
+        <button onclick="init()" class="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 py-2.5 rounded-xl text-sm font-medium transition border border-slate-700/50 cursor-pointer flex items-center justify-center gap-2">
+            <span>🔄</span> Начать заново
+        </button>
     </div>
 
     <script>
-        // Большая встроенная база существительных для стабильной работы на GitHub Pages
         const dictionary = [
             "АКВАРЕЛЬ", "АРБУЗ", "АНАНАС", "АВТОБУС", "АПЕЛЬСИН", "АКВАРИУМ", "АСТРА", "АКТОР",
             "БАНАН", "БАРАБАН", "БОРЩ", "БИЛЕТ", "БАБОЧКА", "БАТОН", "БЕГЕМОТ", "БАРС",
@@ -82,8 +99,8 @@
             document.getElementById('lastWord').innerText = current;
             document.getElementById('targetLetter').innerText = letter;
             document.getElementById('msg').innerText = "Новая игра! Ваш ход.";
-            document.getElementById('msg').className = "text-sm h-6 mb-3 font-medium text-slate-300";
-            document.getElementById('history').innerHTML = `<span class="px-2.5 py-1 bg-slate-900 rounded border border-emerald-500/30 text-emerald-400">🤖 ${current}</span>`;
+            document.getElementById('msgclassName'] = "text-sm h-6 mb-4 font-medium text-slate-300";
+            document.getElementById('history').innerHTML = `<span class="px-3 py-1 bg-slate-900 rounded-lg border border-emerald-500/30 text-emerald-400 text-xs font-medium">🤖 ${current}</span>`;
             document.getElementById('input').value = "";
         }
 
@@ -97,22 +114,22 @@
 
             if (word.includes("-")) {
                 msg.innerText = "Слова с дефисом запрещены!";
-                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
                 return;
             }
             if (used.has(word)) {
                 msg.innerText = "Это слово уже было в игре!";
-                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
                 return;
             }
             if (word[0] !== letter) {
                 msg.innerText = `Слово должно начинаться на букву "${letter}"!`;
-                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
                 return;
             }
             if (!dict.has(word)) {
                 msg.innerText = "Я не знаю такого слова в словаре!";
-                msg.className = "text-sm h-6 mb-3 font-medium text-rose-400";
+                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
                 return;
             }
 
@@ -126,7 +143,7 @@
             document.getElementById('lastWord').innerText = current;
             document.getElementById('targetLetter').innerText = letter;
             msg.innerText = "Робот думает...";
-            msg.className = "text-sm h-6 mb-3 font-medium text-sky-400";
+            msg.className = "text-sm h-6 mb-4 font-medium text-sky-400";
 
             setTimeout(botTurn, 400);
         }
@@ -135,7 +152,7 @@
             const valid = Array.from(dict).filter(w => w.startsWith(letter) && !used.has(w));
             if (valid.length === 0) {
                 document.getElementById('msg').innerText = "🎉 Вы победили! У робота кончились слова.";
-                document.getElementById('msg').className = "text-sm h-6 mb-3 font-medium text-emerald-400";
+                document.getElementById('msg').className = "text-sm h-6 mb-4 font-medium text-emerald-400";
                 return;
             }
             const botWord = valid[Math.floor(Math.random() * valid.length)];
@@ -146,13 +163,13 @@
             document.getElementById('lastWord').innerText = current;
             document.getElementById('targetLetter').innerText = letter;
             document.getElementById('msg').innerText = "Ваш ход!";
-            document.getElementById('msg').className = "text-sm h-6 mb-3 font-medium text-slate-300";
+            document.getElementById('msg').className = "text-sm h-6 mb-4 font-medium text-slate-300";
             addBadge(botWord, 'text-rose-400 border-rose-500/30');
         }
 
         function addBadge(w, cls) {
             const h = document.getElementById('history');
-            h.innerHTML += `<span class="px-2.5 py-1 bg-slate-900 rounded border ${cls}">${w}</span>`;
+            h.innerHTML += `<span class="px-3 py-1 bg-slate-900 rounded-lg border ${cls} text-xs font-medium">${w}</span>`;
             h.scrollTop = h.scrollHeight;
         }
 
