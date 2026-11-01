@@ -2,173 +2,115 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Цепочка Слов</title>
-    
-    <style>
-        /* Переменные для динамической смены тем */
-        .theme-dark { --bg-body: #0f172a; --bg-card: #1e293b; --text: #e2e8f0; --border: #334155; --primary: #38bdf8; --accent: #f43f5e; --input-bg: #0f172a; }
-        .theme-light { --bg-body: #f1f5f9; --bg-card: #ffffff; --text: #1e293b; --border: #cbd5e1; --primary: #0284c7; --accent: #e11d48; --input-bg: #f8fafc; }
-        .theme-cyberpunk { --bg-body: #1a0033; --bg-card: #000000; --text: #00ffcc; --border: #ff007f; --primary: #ff007f; --accent: #00ffcc; --input-bg: #1a0033; }
-
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-body); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; transition: all 0.3s ease; }
-        .theme-selector-container { margin-bottom: 15px; }
-        .btn-theme { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
-        .btn-theme:hover { border-color: var(--primary); }
-
-        .game-container { background-color: var(--bg-card); border-radius: 16px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border); text-align: left; }
-        h1 { color: var(--primary); margin-top: 0; font-size: 1.8rem; text-align: center; margin-bottom: 10px; }
-        .rules-link { color: var(--text); opacity: 0.7; font-size: 0.9rem; cursor: pointer; text-decoration: underline; margin-bottom: 20px; display: block; text-align: center; }
-        .info-line { font-size: 1.1rem; margin-bottom: 10px; }
-        .letter-box { font-size: 1.1rem; margin-top: 15px; margin-bottom: 10px; }
-        .letter-highlight { font-size: 2rem; font-weight: bold; color: var(--accent); display: block; margin-top: 5px; }
-        
-        .input-group { display: flex; gap: 10px; margin-top: 15px; margin-bottom: 15px; }
-        input { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid var(--border); background-color: var(--input-bg); color: var(--text); font-size: 1rem; outline: none; text-transform: uppercase; }
-        input:focus { border-color: var(--primary); }
-        
-        .btn { border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
-        .btn-main { background-color: var(--primary); color: var(--bg-body); }
-        .btn-refresh { background-color: var(--border); color: var(--text); width: 100%; margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 8px; }
-        .message { min-height: 25px; font-size: 0.95rem; color: var(--accent); font-weight: bold; margin-top: 10px; margin-bottom: 10px; }
-        
-        .history-box { background-color: var(--input-bg); border-radius: 8px; padding: 15px; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); }
-        .word-badge { padding: 6px 12px; border-radius: 6px; font-size: 1rem; border-left: 4px solid transparent; }
-        .word-badge.player { background-color: rgba(56, 189, 248, 0.1); border-left-color: var(--primary); color: var(--primary); }
-        .word-badge.bot { background-color: rgba(244, 63, 94, 0.1); border-left-color: var(--accent); color: var(--accent); }
-    </style>
-    
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            let dictionary = [];
-            let currentWord = "";
-            let nextLetter = "";
-            let score = 0;
-            let usedWords = new Set();
-
-            // Прямое чтение внешней библиотеки слов
-            fetch("https://githubusercontent.com")
-                .then(res => {
-                    if (!res.ok) throw new Error();
-                    return res.json();
-                })
-                .then(data => {
-                    let wordsArray = Array.isArray(data) ? data : Object.keys(data);
-                    dictionary = wordsArray
-                        .map(w => typeof w === 'string' ? w.trim().toUpperCase() : (w.word ? w.word.trim().toUpperCase() : ''))
-                        .map(w => w.replace(/Ё/g, "Е"))
-                        .filter(w => w.length >= 2 && w.length <= 15 && !w.includes("-") && !w.includes(" "));
-
-                    document.getElementById('wordInput').disabled = false;
-                    document.getElementById('okBtn').disabled = false;
-                    document.getElementById('newWordBtn').disabled = false;
-                    resetGame();
-                }).catch(() => {
-                    document.getElementById('message').innerText = "Ошибка загрузки библиотеки слов.";
-                });
-
-            function getValidLastLetter(word) {
-                let idx = word.length - 1;
-                while (idx >= 0 && ["Ь", "Ъ", "Ы"].includes(word[idx])) { idx--; }
-                return word[idx] || "";
-            }
-
-            function botTurn(letter) {
-                let validBotWords = dictionary.filter(w => w.startsWith(letter) && !usedWords.has(w));
-                if (validBotWords.length === 0) {
-                    document.getElementById('message').innerText = "🤖 У меня кончились слова! Ты победил! 🎉";
-                    return false;
-                }
-                let botWord = validBotWords[Math.floor(Math.random() * validBotWords.length)];
-                usedWords.add(botWord);
-                currentWord = botWord;
-                nextLetter = getValidLastLetter(botWord);
-                
-                document.getElementById('lastWord').innerText = currentWord;
-                document.getElementById('targetLetter').innerText = nextLetter;
-                
-                let badge = document.createElement('div');
-                badge.className = 'word-badge bot';
-                badge.innerText = `🤖 ${botWord}`;
-                document.getElementById('historyBox').appendChild(badge);
-                scrollHistory();
-                return true;
-            }
-
-            function resetGame() {
-                if (dictionary.length === 0) return;
-                let randWord = dictionary[Math.floor(Math.random() * dictionary.length)];
-                currentWord = randWord;
-                nextLetter = getValidLastLetter(randWord);
-                score = 0;
-                usedWords = new Set([randWord]);
-                
-                document.getElementById('score').innerText = score;
-                document.getElementById('lastWord').innerText = currentWord;
-                document.getElementById('targetLetter').innerText = nextLetter;
-                document.getElementById('message').innerText = "";
-                document.getElementById('wordInput').value = "";
-                
-                let historyBox = document.getElementById('historyBox');
-                historyBox.innerHTML = `<div class="word-badge bot">🤖 ${randWord}</div>`;
-            }
-
-            function playWord() {
-                const input = document.getElementById('wordInput');
-                const msg = document.getElementById('message');
-                
-                let word = input.value.replace(/[\s\n\r]/g, "").toUpperCase().replace(/Ё/g, "Е");
-                if (!word) return;
-                input.value = "";
-
-                if (word.charAt(0) !== nextLetter || usedWords.has(word) || !dictionary.includes(word)) {
-                    msg.innerText = "Ошибка! Проверь букву, правила или повтор.";
-                    return;
-                }
-
-                msg.innerText = "";
-                usedWords.add(word);
-                score += 10;
-                document.getElementById('score').innerText = score;
-                
-                let badge = document.createElement('div');
-                badge.className = 'word-badge player';
-                badge.innerText = `👤 ${word}`;
-                document.getElementById('historyBox').appendChild(badge);
-                scrollHistory();
-                
-                let botLetter = getValidLastLetter(word);
-                
-                setTimeout(() => {
-                    botTurn(botLetter);
-                }, 400);
-            }
-
-            function scrollHistory() {
-                const box = document.getElementById('historyBox');
-                box.scrollTop = box.scrollHeight;
-            }
-
-            const themes = ['theme-dark', 'theme-light', 'theme-cyberpunk'];
-            let currentThemeIdx = 0;
-            
-            document.getElementById('themeBtn').addEventListener('click', function() {
-                document.body.classList.remove(themes[currentThemeIdx]);
-                currentThemeIdx = (currentThemeIdx + 1) % themes.length;
-                document.body.classList.add(themes[currentThemeIdx]);
-                
-                const themeNames = ['Тёмная', 'Светлая', 'Киберпанк'];
-                this.innerText = `🎨 Тема: ${themeNames[currentThemeIdx]}`;
-            });
-
-            document.getElementById('okBtn').addEventListener('click', playWord);
-            document.getElementById('newWordBtn').addEventListener('click', resetGame);
-            document.getElementById('rulesBtn').addEventListener('click', function() { 
-                alert('Правила: Называй реальные существительные. Каждое слово начинается на последнюю букву предыдущего. Буквы Ь, Ъ, Ы пропускаются. Повторяться нельзя!'); 
-            });
-            document.getElementById('wordInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') playWord(); });
-        });
-    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="theme-dark">
+<body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-slate-900 p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-800 text-center">
+        <h1 class="text-2xl font-bold text-sky-400 mb-2">Цепочка Слов</h1>
+        <p class="text-emerald-400 font-semibold mb-4">Очки: <span id="score">0</span></p>
+        
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
+            <p class="text-sm text-slate-400">Слово: <b id="lastWord" class="text-white">...</b></p>
+            <p class="text-sm text-slate-400 mt-2">Буква для хода:</p>
+            <span id="targetLetter" class="text-4xl font-extrabold text-rose-500 uppercase">...</span>
+        </div>
 
+        <div id="msg" class="text-sm h-6 mb-3 font-medium text-slate-300">Загрузка словаря...</div>
+
+        <div class="flex gap-2 mb-4">
+            <input type="text" id="input" placeholder="Введите слово..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-sky-400" disabled>
+            <button onclick="play()" id="btn" class="bg-sky-400 text-slate-950 px-4 py-2 rounded-lg font-bold hover:bg-sky-300 transition cursor-pointer" disabled>ОК</button>
+        </div>
+
+        <div id="history" class="bg-slate-950 p-3 rounded-lg h-28 overflow-y-auto flex flex-wrap gap-2 justify-center border border-slate-800 text-sm"></div>
+        <button onclick="init()" class="w-full mt-4 bg-slate-800 text-slate-300 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">🔄 Заново</button>
+    </div>
+
+    <script>
+        let dict = new Set(), used = new Set(), current = "", letter = "", score = 0;
+
+        // Загружаем внешнюю большую базу русских существительных (около 30 000+ слов)
+        fetch("https://raw.githubusercontent.com/danakt/russian-words/master/words.json")
+            .then(res => res.json())
+            .then(data => {
+                // Фильтруем только существительные в верхнем регистре без дефисов
+                dict = new Set(data.filter(w => w.length > 2 && !w.includes("-")).map(w => w.toUpperCase()));
+                init();
+                document.getElementById('input').disabled = false;
+                document.getElementById('btn').disabled = false;
+            });
+
+        function getLetter(w) {
+            let i = w.length - 1;
+            while (i >= 0 && ["Ь", "Ъ", "Ы"].includes(w[i])) i--;
+            return w[i] || "";
+        }
+
+        function init() {
+            if (dict.size === 0) return;
+            const arr = Array.from(dict);
+            current = arr[Math.floor(Math.random() * arr.length)];
+            letter = getLetter(current);
+            score = 0;
+            used = new Set([current]);
+            
+            document.getElementById('score').innerText = score;
+            document.getElementById('lastWord').innerText = current;
+            document.getElementById('targetLetter').innerText = letter;
+            document.getElementById('msg').innerText = "Ваш ход!";
+            document.getElementById('history').innerHTML = `<span class="px-2 py-1 bg-slate-900 rounded border border-emerald-500/30 text-emerald-400">🤖 ${current}</span>`;
+        }
+
+        function play() {
+            const input = document.getElementById('input');
+            const msg = document.getElementById('msg');
+            const word = input.value.trim().toUpperCase();
+            input.value = "";
+
+            if (!word) return;
+            if (used.has(word)) return msg.innerText = "Это слово уже было!";
+            if (!dict.has(word)) return msg.innerText = "Такого слова нет в словаре!";
+            if (word[0] !== letter) return msg.innerText = `Нужно на букву "${letter}"!`;
+
+            used.add(word);
+            score += 10;
+            document.getElementById('score').innerText = score;
+            addBadge(word, 'text-sky-400 border-sky-500/30');
+
+            current = word;
+            letter = getLetter(current);
+            document.getElementById('lastWord').innerText = current;
+            document.getElementById('targetLetter').innerText = letter;
+            msg.innerText = "Робот думает...";
+
+            setTimeout(botTurn, 400);
+        }
+
+        function botTurn() {
+            const valid = Array.from(dict).filter(w => w.startsWith(letter) && !used.has(w));
+            if (valid.length === 0) {
+                document.getElementById('msg').innerText = "🎉 Вы победили! У бота кончились слова.";
+                return;
+            }
+            const botWord = valid[Math.floor(Math.random() * valid.length)];
+            used.add(botWord);
+            current = botWord;
+            letter = getLetter(current);
+
+            document.getElementById('lastWord').innerText = current;
+            document.getElementById('targetLetter').innerText = letter;
+            document.getElementById('msg').innerText = "Ваш ход!";
+            addBadge(botWord, 'text-rose-400 border-rose-500/30');
+        }
+
+        function addBadge(w, cls) {
+            const h = document.getElementById('history');
+            h.innerHTML += `<span class="px-2 py-1 bg-slate-900 rounded border ${cls}">${w}</span>`;
+            h.scrollTop = h.scrollHeight;
+        }
+
+        document.getElementById('input').addEventListener('keypress', e => e.key === 'Enter' && play());
+    </script>
+</body>
+</html>
