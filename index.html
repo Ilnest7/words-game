@@ -1,183 +1,516 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Цепочка Слов</title>
-    <!-- Подключаем внешний красивый шрифт Inter от Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Подключаем внешнюю библиотеку стилей Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Игра в Слова: Цепочка</title>
+
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .game-container {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 10px 25px rgba(0,0,0,.4);
+            text-align: center;
+            border: 1px solid #334155;
+        }
+
+        h1 {
+            color: #38bdf8;
+            margin-top: 0;
+        }
+
+        .rules-link {
+            color: #94a3b8;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .word-chain-box {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+
+        .current-target {
+            font-size: 1.1rem;
+            color: #94a3b8;
+        }
+
+        .letter-highlight {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #f43f5e;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .score-board {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #34d399;
+            font-weight: bold;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .btn-main {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+
+        .btn-refresh {
+            background: #475569;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .message {
+            min-height: 25px;
+            font-size: .9rem;
+            margin-bottom: 15px;
+        }
+
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+
+        .history-box {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 140px;
+            overflow-y: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            border: 1px solid #334155;
+            justify-content: center;
+        }
+
+        .word-badge {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: .9rem;
+            border: 1px solid #334155;
+        }
+
+        .word-badge.player {
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+
+        .word-badge.bot {
+            border-color: #f43f5e;
+            color: #f43f5e;
+        }
+
+        .word-badge.start {
+            border-color: #34d399;
+            color: #34d399;
+        }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-slate-900/90 backdrop-blur-md p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-800 text-center">
-        <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-indigo-500 mb-1">Цепочка Слов</h1>
-        <p class="text-slate-400 text-sm mb-4">Игра с искусственным интеллектом</p>
-        
-        <div class="flex justify-center items-center gap-2 mb-6">
-            <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-4 py-1.5 rounded-full text-sm font-semibold">
-                Очки: <span id="score">0</span>
-            </span>
-        </div>
-        
-        <div class="bg-slate-950 p-5 rounded-xl border border-slate-800/80 mb-5 shadow-inner">
-            <p class="text-xs tracking-wider uppercase text-slate-400 mb-1">Предыдущее слово</p>
-            <b id="lastWord" class="text-white text-xl tracking-wide">АРБУЗ</b>
-            <div class="my-3 border-t border-slate-800"></div>
-            <p class="text-xs tracking-wider uppercase text-slate-400 mb-1">Нужна буква</p>
-            <span id="targetLetter" class="text-5xl font-black text-rose-500 uppercase drop-shadow-[0_0_15px_rgba(244,63,94,0.3)]">З</span>
-        </div>
 
-        <div id="msg" class="text-sm h-6 mb-4 font-medium text-slate-300 transition-all">Робот сходил! Ваша очередь.</div>
+<body>
 
-        <div class="flex gap-2 mb-5">
-            <input type="text" id="input" placeholder="Введите слово..." autocomplete="off" class="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 transition">
-            <button onclick="play()" id="btn" class="bg-gradient-to-r from-sky-400 to-cyan-500 text-slate-950 px-5 py-3 rounded-xl font-bold hover:opacity-90 transition cursor-pointer shadow-lg shadow-sky-500/20">ОК</button>
-        </div>
+<div class="game-container">
 
-        <div id="history" class="bg-slate-950 p-3 rounded-xl h-36 overflow-y-auto flex flex-wrap gap-2 justify-center border border-slate-800/80 text-sm mb-4 scrollbar-thin">
-            <span class="px-3 py-1 bg-slate-900 rounded-lg border border-emerald-500/30 text-emerald-400 text-xs font-medium">🤖 АРБУЗ</span>
-        </div>
-        
-        <button onclick="init()" class="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 py-2.5 rounded-xl text-sm font-medium transition border border-slate-700/50 cursor-pointer flex items-center justify-center gap-2">
-            <span>🔄</span> Начать заново
-        </button>
+    <h1>Цепочка Слов</h1>
+
+    <span class="rules-link" id="rulesBtn">
+        Показать правила
+    </span>
+
+    <div class="score-board">
+        Твои Очки: <span id="score">0</span>
     </div>
 
-    <script>
-        const dictionary = [
-            "АКВАРЕЛЬ", "АРБУЗ", "АНАНАС", "АВТОБУС", "АПЕЛЬСИН", "АКВАРИУМ", "АСТРА", "АКТОР",
-            "БАНАН", "БАРАБАН", "БОРЩ", "БИЛЕТ", "БАБОЧКА", "БАТОН", "БЕГЕМОТ", "БАРС",
-            "ВЕРТОЛЕТ", "ВОЛК", "ВОРОНА", "ВРЕМЯ", "ВЕЛОСИПЕД", "ВЕТЕР", "ВИНОГРАД", "ВУЛКАН",
-            "ГОРОД", "ГИГАНТ", "ГИТАРА", "ГОЛУБЬ", "ГРИБ", "ГАРАЖ", "ГРУША", "ГОРДОСТЬ",
-            "ДОМ", "ДЕРЕВО", "ДОРОГА", "ДОЖДЬ", "ДИВАН", "ДРАКОН", "ДРОЗД", "ДЯТЕЛ",
-            "ЕЖИК", "ЕЛЬ", "ЕНОТ", "ЕВРОПА", "ЕДА", "ЕДИНОРОГ",
-            "ЖИРАФ", "ЖУК", "ЖЕЛУДЬ", "ЖИЗНЬ", "ЖУРНАЛ",
-            "ЗОНТИК", "ЗЕБРА", "ЗИМА", "ЗВЕЗДА", "ЗОЛОТО", "ЗАЯЦ", "ЗАМОК", "ЗВОНОК",
-            "ИГРА", "ИГОЛКА", "ИЗБА", "ИЗЮМ", "ИНДЮК", "ИНТЕРНЕТ", "ЙОГУРТ", "ЙОД",
-            "КОМПЬЮТЕР", "КИТ", "КОРАБЛЬ", "КОШКА", "КАКТУС", "КАРАНДАШ", "КРОВАТЬ", "КОСМОС",
-            "ЛИМОН", "ЛОШАДЬ", "ЛЯГУШКА", "ЛУНА", "ЛИСА", "ЛОЖКА", "ЛИСТ", "ЛАМПА",
-            "МАШИНА", "МЕДВЕДЬ", "МОЛОКО", "МОСТ", "МЯЧ", "МЕТРО", "МУЗЫКА", "МАЯК",
-            "НОСОРОГ", "НОЖНИЦЫ", "НОЧЬ", "НЕБО", "НОТА", "НОВОСТЬ", "НОСОК",
-            "ОБЛАКО", "ОКНО", "ОГУРЕЦ", "ОРЕЛ", "ОСТРОВ", "ОКЕАН", "ОЛЕНЬ", "ОСЕНЬ",
-            "ПЛАНЕТА", "ПОЕЗД", "ПОПУГАЙ", "ПАЛЬМА", "ПИСЬМО", "ПОМИДОР", "ПТИЦА", "ПОДАРОК",
-            "РУЧКА", "РЕКА", "РЫБА", "РАДУГА", "РАКЕТА", "РОБОТ", "РОЗА", "РЮКЗАК",
-            "СОЛНЦЕ", "СЛОН", "СОБАКА", "СТУЛ", "СТОЛ", "САМОЛЕТ", "СЫР", "СНЕГ",
-            "ТЕЛЕФОН", "ТЕТРАДЬ", "ТИГР", "ТОРТ", "ТРАКТОР", "ТУЧА", "ТРАВА", "ТЕАТР",
-            "УЧЕНИК", "УТКА", "УЛИТКА", "УЖИН", "УТРО", "УТЮГ", "УДОЧКА",
-            "ФЛАГ", "ФОНАРЬ", "ФОТОГРАФИЯ", "ФИЛИН", "ФРУКТ", "ХЛЕБ", "ХОМЯК", "ХВОСТ",
-            "ЦВЕТОК", "ЦАПЛЯ", "ЦИРК", "ЦЕНТР", "ЧАЙНИК", "ЧАСЫ", "ЧЕРЕПАХА", "ЧЕМОДАН",
-            "ШАРФ", "ШКОЛА", "ШОКОЛАД", "ШАПКА", "ШКАФ", "ЩЕКА", "ЩУКА", "ЩЕНОК",
-            "ЭКРАН", "ЭТАЖ", "ЮБКА", "ЮРТА", "ЮПИТЕР", "ЯБЛОКО", "ЯКОРЬ", "ЯЗЫК", "ЯНВАРЬ"
-        ];
+    <div class="word-chain-box">
 
-        let dict = new Set(dictionary);
-        let used = new Set();
-        let current = "АРБУЗ";
-        let letter = "З";
-        let score = 0;
+        <div class="current-target">
+            Предыдущее слово:
+            <b id="lastWord">Загрузка...</b>
+        </div>
 
-        function getLetter(w) {
-            let i = w.length - 1;
-            while (i >= 0 && ["Ь", "Ъ", "Ы"].includes(w[i])) i--;
-            return w[i] || "";
+        <div class="current-target" style="margin-top:10px;">
+            Ждем твое слово на букву:
+        </div>
+
+        <span class="letter-highlight" id="targetLetter">...</span>
+
+    </div>
+
+    <div class="message" id="message">
+        Загружаем словарь...
+    </div>
+
+    <div class="input-group">
+
+        <input
+            type="text"
+            id="wordInput"
+            placeholder="Введите существительное..."
+            autocomplete="off"
+            disabled
+        >
+
+        <button class="btn btn-main" id="okBtn" disabled>
+            ОК
+        </button>
+
+    </div>
+
+    <div class="history-box" id="historyBox"></div>
+
+    <button class="btn btn-refresh" id="newWordBtn" disabled>
+        🔄 Начать заново
+    </button>
+
+</div>
+
+<script>
+
+// ======================================
+// НАСТРОЙКИ ВНЕШНЕЙ БИБЛИОТЕКИ
+// ======================================
+
+// Укажи ссылку на свой JSON-файл GitHub
+const DICTIONARY_URL =
+    "https://raw.githubusercontent.com/USERNAME/word-chain/main/data/words.json";
+
+// ======================================
+// ПЕРЕМЕННЫЕ ИГРЫ
+// ======================================
+
+let dictionary = [];
+
+let currentWord = "";
+let nextLetter = "";
+let score = 0;
+let usedWords = new Set();
+let gameOver = false;
+
+const $ = id => document.getElementById(id);
+
+// ======================================
+// ЗАГРУЗКА СЛОВАРЯ С GITHUB
+// ======================================
+
+async function loadDictionary() {
+
+    try {
+
+        $("message").innerText = "Загружаем словарь с GitHub...";
+
+        const response = await fetch(DICTIONARY_URL);
+
+        if (!response.ok) {
+            throw new Error("Ошибка загрузки словаря");
         }
 
-        function init() {
-            const arr = Array.from(dict);
-            current = arr[Math.floor(Math.random() * arr.length)];
-            letter = getLetter(current);
-            score = 0;
-            used = new Set([current]);
-            
-            document.getElementById('score').innerText = score;
-            document.getElementById('lastWord').innerText = current;
-            document.getElementById('targetLetter').innerText = letter;
-            document.getElementById('msg').innerText = "Новая игра! Ваш ход.";
-            document.getElementById('msgclassName'] = "text-sm h-6 mb-4 font-medium text-slate-300";
-            document.getElementById('history').innerHTML = `<span class="px-3 py-1 bg-slate-900 rounded-lg border border-emerald-500/30 text-emerald-400 text-xs font-medium">🤖 ${current}</span>`;
-            document.getElementById('input').value = "";
+        const data = await response.json();
+
+        if (!Array.isArray(data) || data.length === 0 ||
+            !data.every(word => typeof word === "string")) {
+            throw new Error("Неверный формат словаря");
         }
 
-        function play() {
-            const input = document.getElementById('input');
-            const msg = document.getElementById('msg');
-            const word = input.value.trim().toUpperCase();
-            input.value = "";
+        dictionary = [...new Set(
+            data.map(word => word.trim().toUpperCase())
+                .filter(word => /^[А-ЯЁ]+$/.test(word))
+        )];
 
-            if (!word) return;
-
-            if (word.includes("-")) {
-                msg.innerText = "Слова с дефисом запрещены!";
-                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
-                return;
-            }
-            if (used.has(word)) {
-                msg.innerText = "Это слово уже было в игре!";
-                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
-                return;
-            }
-            if (word[0] !== letter) {
-                msg.innerText = `Слово должно начинаться на букву "${letter}"!`;
-                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
-                return;
-            }
-            if (!dict.has(word)) {
-                msg.innerText = "Я не знаю такого слова в словаре!";
-                msg.className = "text-sm h-6 mb-4 font-medium text-rose-400";
-                return;
-            }
-
-            used.add(word);
-            score += 10;
-            document.getElementById('score').innerText = score;
-            addBadge(word, 'text-sky-400 border-sky-500/30');
-
-            current = word;
-            letter = getLetter(current);
-            document.getElementById('lastWord').innerText = current;
-            document.getElementById('targetLetter').innerText = letter;
-            msg.innerText = "Робот думает...";
-            msg.className = "text-sm h-6 mb-4 font-medium text-sky-400";
-
-            setTimeout(botTurn, 400);
+        if (dictionary.length === 0) {
+            throw new Error("В словаре нет подходящих слов");
         }
 
-        function botTurn() {
-            const valid = Array.from(dict).filter(w => w.startsWith(letter) && !used.has(w));
-            if (valid.length === 0) {
-                document.getElementById('msg').innerText = "🎉 Вы победили! У робота кончились слова.";
-                document.getElementById('msg').className = "text-sm h-6 mb-4 font-medium text-emerald-400";
-                return;
-            }
-            const botWord = valid[Math.floor(Math.random() * valid.length)];
-            used.add(botWord);
-            current = botWord;
-            letter = getLetter(current);
+        $("wordInput").disabled = false;
+        $("okBtn").disabled = false;
+        $("newWordBtn").disabled = false;
 
-            document.getElementById('lastWord').innerText = current;
-            document.getElementById('targetLetter').innerText = letter;
-            document.getElementById('msg').innerText = "Ваш ход!";
-            document.getElementById('msg').className = "text-sm h-6 mb-4 font-medium text-slate-300";
-            addBadge(botWord, 'text-rose-400 border-rose-500/30');
+        resetGame();
+
+    } catch (error) {
+
+        console.error(error);
+
+        $("message").innerText =
+            "Не удалось загрузить словарь с GitHub!";
+
+        $("message").className = "message error";
+
+    }
+}
+
+// ======================================
+// ПОЛУЧЕНИЕ ПОСЛЕДНЕЙ БУКВЫ
+// ======================================
+
+function getValidLastLetter(word) {
+
+    let idx = word.length - 1;
+
+    const badLetters = ["Ь", "Ъ", "Ы"];
+
+    while (
+        idx >= 0 &&
+        badLetters.includes(word[idx])
+    ) {
+        idx--;
+    }
+
+    return word[idx] || "";
+}
+
+// ======================================
+// ХОД КОМПЬЮТЕРА
+// ======================================
+
+function botTurn(letter) {
+
+    const validBotWords = dictionary.filter(word =>
+        word.startsWith(letter) &&
+        !usedWords.has(word)
+    );
+
+    if (validBotWords.length === 0) {
+
+        $("message").innerText =
+            "🤖 У меня кончились слова! Ты победил! 🎉";
+
+        $("message").className = "message success";
+
+        gameOver = true;
+
+        return false;
+    }
+
+    const botWord = validBotWords[
+        Math.floor(Math.random() * validBotWords.length)
+    ];
+
+    usedWords.add(botWord);
+
+    currentWord = botWord;
+    nextLetter = getValidLastLetter(botWord);
+
+    $("lastWord").innerText = currentWord;
+    $("targetLetter").innerText = nextLetter;
+
+    addWordToHistory(botWord, "bot");
+
+    return true;
+}
+
+// ======================================
+// ИСТОРИЯ СЛОВ
+// ======================================
+
+function addWordToHistory(word, type) {
+
+    const badge = document.createElement("span");
+
+    badge.className = "word-badge " + type;
+
+    badge.innerText =
+        (type === "player" ? "👤 " : "🤖 ") + word;
+
+    $("historyBox").appendChild(badge);
+}
+
+// ======================================
+// НОВАЯ ИГРА
+// ======================================
+
+function resetGame() {
+
+    if (!dictionary.length) return;
+
+    const randWord = dictionary[
+        Math.floor(Math.random() * dictionary.length)
+    ];
+
+    currentWord = randWord;
+    nextLetter = getValidLastLetter(randWord);
+
+    score = 0;
+    gameOver = false;
+
+    usedWords = new Set([randWord]);
+
+    $("score").innerText = score;
+    $("lastWord").innerText = currentWord;
+    $("targetLetter").innerText = nextLetter;
+
+    $("message").innerText = "Новая игра! Твой ход.";
+    $("message").className = "message";
+
+    $("wordInput").value = "";
+
+    $("historyBox").innerHTML = "";
+
+    const badge = document.createElement("span");
+
+    badge.className = "word-badge start";
+    badge.innerText = "🤖 " + randWord;
+
+    $("historyBox").appendChild(badge);
+}
+
+// ======================================
+// ХОД ИГРОКА
+// ======================================
+
+function playWord() {
+
+    if (gameOver || !dictionary.length) return;
+
+    const input = $("wordInput");
+    const msg = $("message");
+
+    let word = input.value
+        .replace(/[\s\n\r]/g, "")
+        .toUpperCase();
+
+    if (!word) return;
+
+    input.value = "";
+
+    if (word.includes("-")) {
+        msg.innerText = "Слова с дефисом запрещены!";
+        msg.className = "message error";
+        return;
+    }
+
+    if (usedWords.has(word)) {
+        msg.innerText = "Это слово уже было в игре!";
+        msg.className = "message error";
+        return;
+    }
+
+    if (word.charAt(0) !== nextLetter) {
+        msg.innerText =
+            `Слово должно начинаться на букву "${nextLetter}"`;
+
+        msg.className = "message error";
+        return;
+    }
+
+    if (!dictionary.includes(word)) {
+        msg.innerText =
+            "Я не знаю такого слова в своей библиотеке!";
+
+        msg.className = "message error";
+        return;
+    }
+
+    usedWords.add(word);
+
+    score += 10;
+
+    $("score").innerText = score;
+
+    addWordToHistory(word, "player");
+
+    const botLetter = getValidLastLetter(word);
+
+    msg.innerText = "Робот думает...";
+    msg.className = "message success";
+
+    setTimeout(() => {
+
+        if (botTurn(botLetter)) {
+
+            msg.innerText = "Твой ход!";
+            msg.className = "message";
+
         }
 
-        function addBadge(w, cls) {
-            const h = document.getElementById('history');
-            h.innerHTML += `<span class="px-3 py-1 bg-slate-900 rounded-lg border ${cls} text-xs font-medium">${w}</span>`;
-            h.scrollTop = h.scrollHeight;
-        }
+    }, 400);
+}
 
-        document.getElementById('input').addEventListener('keypress', e => {
-            if (e.key === 'Enter') play();
-        });
+// ======================================
+// СОБЫТИЯ
+// ======================================
 
-        init();
-    </script>
+$("okBtn").addEventListener("click", playWord);
+
+$("newWordBtn").addEventListener("click", resetGame);
+
+$("wordInput").addEventListener("keydown", event => {
+
+    if (event.key === "Enter") {
+        playWord();
+    }
+
+});
+
+$("rulesBtn").addEventListener("click", () => {
+
+    alert(
+        "ПРАВИЛА:\n\n" +
+        "1. Называй слова из списка на нужную букву.\n" +
+        "2. Робот ответит словом из этого же списка.\n" +
+        "3. Повторять слова нельзя.\n" +
+        "4. За каждое правильное слово +10 очков."
+    );
+
+});
+
+// ======================================
+// ЗАПУСК
+// ======================================
+
+loadDictionary();
+
+</script>
+
 </body>
 </html>
