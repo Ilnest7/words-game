@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Цепочка Слов: Огромный Словарь</title>
+    <title>Цепочка Слов</title>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             let dictionary = [];
@@ -12,33 +12,29 @@
             let score = 0;
             let usedWords = new Set();
 
-            // Используем стабильный внешний CDN с огромной базой русских существительных (CORS разрешен)
+            // Стабильный источник базы данных русских существительных (CORS разрешен)
             fetch("https://githubusercontent.com")
                 .then(response => {
                     if (!response.ok) throw new Error();
                     return response.json();
                 })
                 .then(data => {
-                    // Извлекаем слова из JSON структуры, переводим в верхний регистр и фильтруем
-                    // Данный репозиторий содержит массив объектов или слов, приводим к стандартному списку
                     let wordsArray = Array.isArray(data) ? data : Object.keys(data);
                     
+                    // Очистка и нормализация базы слов (заменяем Ё на Е для удобства)
                     dictionary = wordsArray
                         .map(w => typeof w === 'string' ? w.trim().toUpperCase() : (w.word ? w.word.trim().toUpperCase() : ''))
-                        .filter(w => w.length >= 2 && w.length <= 15 && !w.includes("-") && !w.includes(" ") && !w.includes("Ё"));
+                        .map(w => w.replace(/Ё/g, "Е"))
+                        .filter(w => w.length >= 2 && w.length <= 15 && !w.includes("-") && !w.includes(" "));
                     
-                    // Добавляем поддержку буквы Е вместо Ё для удобства игроков
-                    // (Многие словари разделяют их, что усложняет игру)
-                    
-                    // Включаем кнопки, когда база полностью готова
+                    // Активируем элементы управления после загрузки словаря
                     document.getElementById('wordInput').disabled = false;
                     document.getElementById('okBtn').disabled = false;
                     document.getElementById('newWordBtn').disabled = false;
                     resetGame();
                 })
                 .catch(() => {
-                    document.getElementById('message').innerText = "❌ Ошибка загрузки базы слов. Обновите страницу.";
-                    document.getElementById('message').className = "message error";
+                    document.getElementById('message').innerText = "Ошибка загрузки базы слов. Обновите страницу.";
                 });
 
             function getValidLastLetter(word) {
@@ -51,99 +47,129 @@
                 let validBotWords = dictionary.filter(w => w.startsWith(letter) && !usedWords.has(w));
                 if (validBotWords.length === 0) {
                     document.getElementById('message').innerText = "🤖 У меня кончились слова! Ты победил! 🎉";
-                    document.getElementById('message').className = "message success"; return false;
+                    return false;
                 }
                 let botWord = validBotWords[Math.floor(Math.random() * validBotWords.length)];
-                usedWords.add(botWord); currentWord = botWord; nextLetter = getValidLastLetter(botWord);
-                document.getElementById('lastWord').innerText = currentWord; document.getElementById('targetLetter').innerText = nextLetter;
-                let badge = document.createElement('span'); badge.className = 'word-badge bot'; badge.innerText = `🤖 ${botWord}`;
-                document.getElementById('historyBox').appendChild(badge); return true;
+                usedWords.add(botWord);
+                currentWord = botWord;
+                nextLetter = getValidLastLetter(botWord);
+                
+                document.getElementById('lastWord').innerText = currentWord;
+                document.getElementById('targetLetter').innerText = nextLetter;
+                
+                let badge = document.createElement('div');
+                badge.className = 'word-badge bot';
+                badge.innerText = `🤖 ${botWord}`;
+                document.getElementById('historyBox').appendChild(badge);
+                return true;
             }
 
             function resetGame() {
                 if (dictionary.length === 0) return;
                 let randWord = dictionary[Math.floor(Math.random() * dictionary.length)];
-                currentWord = randWord; nextLetter = getValidLastLetter(randWord); score = 0; usedWords = new Set([randWord]);
-                document.getElementById('score').innerText = score; document.getElementById('lastWord').innerText = currentWord; document.getElementById('targetLetter').innerText = nextLetter;
-                document.getElementById('message').innerText = "Огромный словарь успешно загружен! Твой ход."; document.getElementById('message').className = "message"; document.getElementById('wordInput').value = "";
-                document.getElementById('historyBox').innerHTML = `<span class="word-badge start">🤖 ${randWord}</span>`;
+                currentWord = randWord;
+                nextLetter = getValidLastLetter(randWord);
+                score = 0;
+                usedWords = new Set([randWord]);
+                
+                document.getElementById('score').innerText = score;
+                document.getElementById('lastWord').innerText = currentWord;
+                document.getElementById('targetLetter').innerText = nextLetter;
+                document.getElementById('message').innerText = "";
+                document.getElementById('wordInput').value = "";
+                
+                let historyBox = document.getElementById('historyBox');
+                historyBox.innerHTML = `<div class="word-badge bot">🤖 ${randWord}</div>`;
             }
 
             function playWord() {
-                const input = document.getElementById('wordInput'); const msg = document.getElementById('message');
-                let word = input.value.replace(/[\s\n\r]/g, "").toUpperCase().replace(/Ё/g, "Е"); if (!word) return; input.value = "";
-                if (usedWords.has(word)) {
-                    msg.innerText = "Это слово уже было в игре!"; msg.className = "message error"; return;
+                const input = document.getElementById('wordInput');
+                const msg = document.getElementById('message');
+                
+                let word = input.value.replace(/[\s\n\r]/g, "").toUpperCase().replace(/Ё/g, "Е");
+                if (!word) return;
+                input.value = "";
+
+                // Проверка условий игры
+                if (word.charAt(0) !== nextLetter || usedWords.has(word) || !dictionary.includes(word)) {
+                    msg.innerText = "Ошибка! Проверь букву, правила или повтор.";
+                    return;
                 }
-                if (word.charAt(0) !== nextLetter) {
-                    msg.innerText = `Неверно! Слово должно начинаться на букву "${nextLetter}"`; msg.className = "message error"; return;
-                }
-                if (!dictionary.includes(word)) {
-                    msg.innerText = "Я не знаю такого слова! Попробуй другое."; msg.className = "message error"; return;
-                }
-                usedWords.add(word); score += 10; document.getElementById('score').innerText = score;
-                let badge = document.createElement('span'); badge.className = 'word-badge player'; badge.innerText = `👤 ${word}`;
+
+                // Если слово верное
+                msg.innerText = "";
+                usedWords.add(word);
+                score += 10;
+                document.getElementById('score').innerText = score;
+                
+                let badge = document.createElement('div');
+                badge.className = 'word-badge player';
+                badge.innerText = `👤 ${word}`;
                 document.getElementById('historyBox').appendChild(badge);
-                let botLetter = getValidLastLetter(word); msg.innerText = "Робот думает..."; msg.className = "message success";
-                setTimeout(() => { if (botTurn(botLetter)) { msg.innerText = "Твой ход!"; msg.className = "message"; } }, 400);
+                
+                let botLetter = getValidLastLetter(word);
+                
+                // Ход робота через небольшую паузу
+                setTimeout(() => {
+                    botTurn(botLetter);
+                }, 400);
             }
 
             document.getElementById('okBtn').addEventListener('click', playWord);
             document.getElementById('newWordBtn').addEventListener('click', resetGame);
-            document.getElementById('rulesBtn').addEventListener('click', function() { alert('Называй абсолютно любые реальные существительные!'); });
+            document.getElementById('rulesBtn').addEventListener('click', function() { 
+                alert('Называй существующие существительные в начальной форме. Каждое следующее слово должно начинаться на последнюю букву предыдущего (исключая Ь, Ъ, Ы).'); 
+            });
             document.getElementById('wordInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') playWord(); });
         });
     </script>
     <style>
         body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
-        .game-container { background-color: #1e293b; border-radius: 16px; padding: 30px; width: 100%; max-width: 480px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); text-align: center; border: 1px solid #334155; }
-        h1 { color: #38bdf8; margin-top: 0; font-size: 1.8rem; margin-bottom: 5px; }
-        .rules-link { color: #94a3b8; font-size: 0.85rem; cursor: pointer; text-decoration: underline; margin-bottom: 20px; display: inline-block; }
-        .word-chain-box { background: #0f172a; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #334155; }
-        .current-target { font-size: 1.1rem; color: #94a3b8; }
-        .letter-highlight { font-size: 2.2rem; font-weight: bold; color: #f43f5e; display: block; margin-top: 5px; text-transform: uppercase; }
-        .score-board { font-size: 1.1rem; margin-bottom: 15px; color: #34d399; font-weight: bold; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        input { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid #334155; background-color: #0f172a; color: white; font-size: 1rem; outline: none; }
+        .game-container { background-color: #1e293b; border-radius: 16px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); border: 1px solid #334155; text-align: left; }
+        h1 { color: #38bdf8; margin-top: 0; font-size: 1.8rem; text-align: center; margin-bottom: 10px; }
+        .rules-link { color: #94a3b8; font-size: 0.9rem; cursor: pointer; text-decoration: underline; margin-bottom: 20px; display: block; text-align: center; }
+        .info-line { font-size: 1.1rem; margin-bottom: 10px; color: #e2e8f0; }
+        .letter-box { font-size: 1.1rem; margin-top: 15px; margin-bottom: 10px; color: #e2e8f0; }
+        .letter-highlight { font-size: 2rem; font-weight: bold; color: #f43f5e; display: block; margin-top: 5px; }
+        .input-group { display: flex; gap: 10px; margin-top: 15px; margin-bottom: 15px; }
+        input { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid #334155; background-color: #0f172a; color: white; font-size: 1rem; outline: none; text-transform: uppercase; }
         input:focus { border-color: #38bdf8; }
         .btn { border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
         .btn-main { background-color: #38bdf8; color: #0f172a; }
         .btn-main:hover { background-color: #0ea5e9; }
-        .btn-refresh { background-color: #475569; color: #e2e8f0; width: 100%; margin-top: 10px; }
+        .btn-refresh { background-color: #475569; color: #e2e8f0; width: 100%; margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-refresh:hover { background-color: #334155; }
-        .message { min-height: 25px; font-size: 0.9rem; margin-bottom: 15px; font-weight: 500; padding: 0 5px; }
-        .success { color: #4ade80; }
-        .error { color: #f87171; }
-        .history-box { background-color: #0f172a; border-radius: 8px; padding: 15px; max-height: 140px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 8px; border: 1px solid #334155; justify-content: center; }
-        .word-badge { background-color: #1e293b; color: #e2e8f0; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; border: 1px solid #334155; }
-        .word-badge.player { border-color: #38bdf8; color: #38bdf8; }
-        .word-badge.bot { border-color: #f43f5e; color: #f43f5e; }
-        .word-badge.start { border-color: #34d399; color: #34d399; }
+        .message { min-height: 25px; font-size: 0.95rem; color: #f87171; font-weight: bold; margin-top: 10px; margin-bottom: 10px; }
+        .history-box { background-color: #0f172a; border-radius: 8px; padding: 15px; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; border: 1px solid #334155; }
+        .word-badge { padding: 6px 12px; border-radius: 6px; font-size: 1rem; border-left: 4px solid transparent; }
+        .word-badge.player { background-color: rgba(56, 189, 248, 0.1); border-left-color: #38bdf8; color: #38bdf8; }
+        .word-badge.bot { background-color: rgba(244, 63, 94, 0.1); border-left-color: #f43f5e; color: #f43f5e; }
     </style>
 </head>
 <body>
 
 <div class="game-container">
     <h1>Цепочка Слов</h1>
-    <div id="rulesBtn" class="rules-link">Правила игры</div>
+    <div id="rulesBtn" class="rules-link">Показать правила</div>
     
-    <div class="score-board">Очки: <span id="score">0</span></div>
+    <div class="info-line">Твои Очки: <span id="score">0</span></div>
+    <div class="info-line">Предыдущее слово: <strong id="lastWord">ЕЖИК</strong></div>
     
-    <div class="word-chain-box">
-        <div class="current-target">Предыдущее слово: <strong id="lastWord">—</strong></div>
-        <div class="current-target" style="margin-top: 10px;">Следующая буква: <span id="targetLetter" class="letter-highlight">—</span></div>
+    <div class="letter-box">
+        Ждем твое слово на букву:
+        <span id="targetLetter" class="letter-highlight">К</span>
     </div>
     
     <div id="message" class="message">Загрузка базы слов...</div>
     
     <div class="input-group">
-        <input type="text" id="wordInput" placeholder="Введите слово..." disabled>
+        <input type="text" id="wordInput" placeholder="коробка" disabled>
         <button id="okBtn" class="btn btn-main" disabled>ОК</button>
     </div>
     
     <div id="historyBox" class="history-box"></div>
     
-    <button id="newWordBtn" class="btn btn-refresh" disabled>Начать заново</button>
+    <button id="newWordBtn" class="btn btn-refresh" disabled>🔄 Начать заново</button>
 </div>
 
 </body>
