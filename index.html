@@ -7,19 +7,28 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             let dictionary = [];
-            let currentWord = "АРБУЗ";
-            let nextLetter = "З";
+            let currentWord = "";
+            let nextLetter = "";
             let score = 0;
-            let usedWords = new Set(["АРБУЗ"]);
+            let usedWords = new Set();
 
-            // Умный обход CORS: скачиваем гигантский словарь через открытый прокси-сервер
-            fetch("https://allorigins.win" + encodeURIComponent("https://githubusercontent.com"))
-                .then(response => response.text())
-                .then(text => {
-                    // Очищаем и подгружаем все 150 000 слов в память игры за полсекунды
-                    dictionary = text.split("\n")
-                        .map(w => w.trim().toUpperCase())
-                        .filter(w => w.length >= 2 && w.length <= 15 && !w.includes("-") && !w.includes(" "));
+            // Используем стабильный внешний CDN с огромной базой русских существительных (CORS разрешен)
+            fetch("https://githubusercontent.com")
+                .then(response => {
+                    if (!response.ok) throw new Error();
+                    return response.json();
+                })
+                .then(data => {
+                    // Извлекаем слова из JSON структуры, переводим в верхний регистр и фильтруем
+                    // Данный репозиторий содержит массив объектов или слов, приводим к стандартному списку
+                    let wordsArray = Array.isArray(data) ? data : Object.keys(data);
+                    
+                    dictionary = wordsArray
+                        .map(w => typeof w === 'string' ? w.trim().toUpperCase() : (w.word ? w.word.trim().toUpperCase() : ''))
+                        .filter(w => w.length >= 2 && w.length <= 15 && !w.includes("-") && !w.includes(" ") && !w.includes("Ё"));
+                    
+                    // Добавляем поддержку буквы Е вместо Ё для удобства игроков
+                    // (Многие словари разделяют их, что усложняет игру)
                     
                     // Включаем кнопки, когда база полностью готова
                     document.getElementById('wordInput').disabled = false;
@@ -62,7 +71,7 @@
 
             function playWord() {
                 const input = document.getElementById('wordInput'); const msg = document.getElementById('message');
-                let word = input.value.replace(/[\s\n\r]/g, "").toUpperCase(); if (!word) return; input.value = "";
+                let word = input.value.replace(/[\s\n\r]/g, "").toUpperCase().replace(/Ё/g, "Е"); if (!word) return; input.value = "";
                 if (usedWords.has(word)) {
                     msg.innerText = "Это слово уже было в игре!"; msg.className = "message error"; return;
                 }
@@ -113,25 +122,29 @@
     </style>
 </head>
 <body>
-    <div class="game-container">
-        <h1>Цепочка Слов</h1>
-        <span class="rules-link" id="rulesBtn">Показать правила</span>
-        <div class="score-board">Твои Очки: <span id="score">0</span></div>
-        <div class="word-chain-box">
-            <div class="current-target">Предыдущее слово: <b id="lastWord">АРБУЗ</b></div>
-            <div class="current-target" style="margin-top:10px;">Ждем твое слово на букву:</div>
-            <span class="letter-highlight" id="targetLetter">З</span>
-        </div>
-        <div class="message" id="message">Загрузка огромного словаря... ⏳</div>
-        <div class="input-group">
-            <input type="text" id="wordInput" placeholder="Введите существительное..." autocomplete="off" disabled>
-            <button class="btn btn-main" id="okBtn" disabled>ОК</button>
-        </div>
-        <div class="history-box" id="historyBox">
-            <span class="word-badge start">🤖 АРБУЗ</span>
-        </div>
-        <button class="btn btn-refresh" id="newWordBtn" disabled>🔄 Начать заново</button>
+
+<div class="game-container">
+    <h1>Цепочка Слов</h1>
+    <div id="rulesBtn" class="rules-link">Правила игры</div>
+    
+    <div class="score-board">Очки: <span id="score">0</span></div>
+    
+    <div class="word-chain-box">
+        <div class="current-target">Предыдущее слово: <strong id="lastWord">—</strong></div>
+        <div class="current-target" style="margin-top: 10px;">Следующая буква: <span id="targetLetter" class="letter-highlight">—</span></div>
     </div>
+    
+    <div id="message" class="message">Загрузка базы слов...</div>
+    
+    <div class="input-group">
+        <input type="text" id="wordInput" placeholder="Введите слово..." disabled>
+        <button id="okBtn" class="btn btn-main" disabled>ОК</button>
+    </div>
+    
+    <div id="historyBox" class="history-box"></div>
+    
+    <button id="newWordBtn" class="btn btn-refresh" disabled>Начать заново</button>
+</div>
+
 </body>
 </html>
-
