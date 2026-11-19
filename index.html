@@ -84,9 +84,15 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
 <script>
 "use strict";
 
-const NOUNS_URL = "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.csv";
+// Основной и запасной источники списка существительных (по одному слову в строке)
+const NOUNS_URLS = [
+  "https://raw.githubusercontent.com/Harrix/Russian-Nouns/main/dist/russian_nouns.txt",
+  "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.txt"
+];
+
 const $ = id => document.getElementById(id);
 const STORAGE_KEY = "wordChainStatsV3";
+const MIN_DICTIONARY_SIZE = 1000;
 
 let dictionary = [];
 let wordSet = new Set();
@@ -101,39 +107,26 @@ let remaining = 30;
 let turnStartedAt = 0;
 let gameRecorded = false;
 
+// Нормализация: верхний регистр, ё -> е, только буквы
 function normalizeWord(value) {
-  return value.trim().toLocaleUpperCase("ru-RU").replace(/Ё/g, "Ё").replace(/\s+/g, "");
+  return String(value || "")
+    .trim()
+    .toLocaleUpperCase("ru-RU")
+    .replace(/Ё/g, "Е")
+    .replace(/[^А-Я]/g, "");
 }
 
-function parseCSVLine(line) {
-  const fields = [];
-  let field = "", quoted = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (quoted && line[i + 1] === '"') { field += '"'; i++; }
-      else quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      fields.push(field); field = "";
-    } else field += char;
-  }
-  fields.push(field);
-  return fields;
+// Принимаем слово, если это 2+ русских буквы
+function isValidWord(word) {
+  return /^[А-Я]{2,}$/.test(word);
 }
 
-function addNounForm(set, value) {
-  const word = normalizeWord(value || "");
-  if (/^[А-ЯЁ]{2,}$/.test(word)) set.add(word);
-}
-
-function buildNounDictionary(csv) {
+// Строим словарь из текста «одно слово в строке»
+function buildNounDictionary(text) {
   const set = new Set();
-  const lines = csv.split(/\r?\n/);
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const row = parseCSVLine(lines[i]);
-    addNounForm(set, row[0]);
-    for (let col = 9; col <= 21 && col < row.length; col++) addNounForm(set, row[col]);
+  for (const line of text.split(/\r?\n/)) {
+    const word = normalizeWord(line);
+    if (isValidWord(word)) set.add(word);
   }
   return [...set];
 }
@@ -142,7 +135,9 @@ function loadStats() {
   const fallback = {wins:0, losses:0, played:0, best:{easy:0,medium:0,hard:0}};
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved ? {...fallback, ...saved, best:{...fallback.best, ...(saved.best || {})}} : fallback;
+    return saved
+      ? {...fallback, ...saved, best:{...fallback.best, ...(saved.best || {})}}
+      : fallback;
   } catch { return fallback; }
 }
 
@@ -179,7 +174,7 @@ function candidatesFor(letter) {
   return (byFirstLetter.get(letter) || []).filter(word => !used.has(word));
 }
 
-function setMessage(text, type="") {
+function setMessage(text, type = "") {
   $("message").textContent = text;
   $("message").className = "message " + type;
 }
@@ -204,10 +199,12 @@ function stopTimer() {
 
 function renderTimer() {
   const limit = Number($("timeLimit").value) || 30;
-  const percent = Math.max(0, remaining / limit * 100);
+  const percent = Math.max(0, (remaining / limit) * 100);
   $("timerText").textContent = Math.ceil(remaining) + " сек.";
   $("timerFill").style.width = percent + "%";
-  $("timerFill").style.background = percent < 25 ? "#fb7185" : "linear-gradient(90deg,#34d399,#38bdf8)";
+  $("timerFill").style.background = percent < 25
+    ? "#fb7185"
+    : "linear-gradient(90deg,#34d399,#38bdf8)";
 }
 
 function startTimer() {
@@ -283,10 +280,10 @@ function chooseBotWord(letter) {
     const ending = getLastLetter(word);
     const replies = candidatesFor(ending).length;
     return {word, replies};
-  }).sort((a,b) => a.replies - b.replies);
+  }).sort((a, b) => a.replies - b.replies);
 
   if (level === "medium") {
-    const pool = scored.slice(0, Math.max(1, Math.ceil(scored.length * .35)));
+    const pool = scored.slice(0, Math.max(1, Math.ceil(scored.length * 0.35)));
     return pool[Math.floor(Math.random() * pool.length)].word;
   }
   const minimum = scored[0].replies;
@@ -316,7 +313,7 @@ function playWord() {
   const word = normalizeWord($("wordInput").value);
   $("wordInput").value = "";
   if (!word) return;
-  if (!/^[А-ЯЁ]+$/.test(word)) { setMessage("Вводи только русские буквы.", "error"); return; }
+  if (!isValidWord(word)) { setMessage("Вводи только русские буквы (2+ символа).", "error"); return; }
   if (used.has(word)) { setMessage("Это слово уже использовалось.", "error"); return; }
   if (word[0] !== nextLetter) { setMessage("Нужно слово на букву «" + nextLetter + "».", "error"); return; }
   if (!wordSet.has(word)) { setMessage("Такого существительного нет в словаре.", "error"); return; }
@@ -332,13 +329,30 @@ function playWord() {
   window.setTimeout(() => botTurn(getLastLetter(word)), 450);
 }
 
+async function fetchDictionaryText() {
+  let lastError = null;
+  for (const url of NOUNS_URLS) {
+    try {
+      const response = await fetch(url, {cache: "force-cache"});
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const text = await response.text();
+      if (text.trim().startsWith("<")) throw new Error("Получен HTML вместо словаря");
+      return text;
+    } catch (error) {
+      lastError = error;
+      console.warn("Источник словаря недоступен:", url, error);
+    }
+  }
+  throw lastError || new Error("Все источники недоступны");
+}
+
 async function loadDictionary() {
   try {
-    const response = await fetch(NOUNS_URL, {cache:"force-cache"});
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    const csv = await response.text();
-    dictionary = buildNounDictionary(csv);
-    if (dictionary.length < 1000) throw new Error("Словарь существительных не загрузился полностью");
+    const text = await fetchDictionaryText();
+    dictionary = buildNounDictionary(text);
+    if (dictionary.length < MIN_DICTIONARY_SIZE) {
+      throw new Error("Словарь загрузился не полностью: " + dictionary.length + " слов");
+    }
     wordSet = new Set(dictionary);
     buildIndex();
     $("reset").disabled = false;
