@@ -1,229 +1,289 @@
+from pathlib import Path
 
-<!DOCTYPE html>
+html = r'''<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f172a">
 <title>Цепочка слов</title>
 <style>
-body{font-family:system-ui;background:#0f172a;color:#e2e8f0;margin:0;padding:20px;display:flex;justify-content:center;align-items:center;min-height:100vh;box-sizing:border-box}
-.game{background:#1e293b;border-radius:16px;padding:30px;width:100%;max-width:480px;text-align:center;border:1px solid #334155}
-h1{color:#38bdf8}
-.target{background:#0f172a;padding:20px;border-radius:10px;margin:20px 0}
-.letter{font-size:40px;color:#f43f5e;font-weight:bold}
-.score{color:#34d399;font-weight:bold}
-.input{display:flex;gap:10px}
-input{min-width:0;flex:1;padding:12px;border-radius:8px;background:#0f172a;border:2px solid #334155;color:white}
-button{padding:12px 20px;border:0;border-radius:8px;background:#38bdf8;font-weight:bold;cursor:pointer}
-.history{margin-top:15px;background:#0f172a;padding:15px;border-radius:8px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:150px;overflow:auto}
-.word{padding:5px 10px;border-radius:15px;background:#1e293b;border:1px solid #475569}
-.player{color:#38bdf8}.bot{color:#f43f5e}
-.message{min-height:25px;margin:15px 0}
-.error{color:#f87171}.success{color:#4ade80}
-.reset{width:100%;margin-top:15px;background:#475569;color:white}
+:root{color-scheme:dark;--bg:#0f172a;--panel:#1e293b;--panel2:#0b1222;--line:#334155;--blue:#38bdf8;--pink:#fb7185;--green:#34d399;--muted:#94a3b8}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(ellipse at top,#1e3a5f 0%,var(--bg) 55%);color:#e2e8f0;margin:0;padding:24px;min-height:100vh;display:grid;place-items:center}
+.game{width:min(100%,560px);background:rgba(30,41,59,.96);border:1px solid #3b4c65;border-radius:22px;padding:clamp(18px,4vw,30px);box-shadow:0 22px 70px #02061799}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;color:var(--blue);font-size:clamp(25px,5vw,34px);letter-spacing:.2px}
+.pill{background:#0f172a;border:1px solid var(--line);border-radius:999px;padding:7px 12px;color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:20px 0}
+.stat{background:var(--panel2);border:1px solid var(--line);padding:11px;border-radius:12px;text-align:center}
+.stat small{display:block;color:var(--muted);font-size:12px}.stat strong{font-size:21px;color:var(--green);font-variant-numeric:tabular-nums}
+.target{background:linear-gradient(135deg,#0b1222,#111e34);border:1px solid #263a55;padding:18px;border-radius:16px;text-align:center;margin:16px 0}
+.target-label{color:var(--muted);font-size:13px}.last{font-size:20px;font-weight:700;margin:5px 0 12px;overflow-wrap:anywhere}
+.letter{font-size:48px;line-height:1.1;color:var(--pink);font-weight:850;text-shadow:0 0 24px #fb718555}
+.timer-wrap{margin:16px 0 4px}.timer-row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:7px}
+.track{height:8px;background:#334155;border-radius:20px;overflow:hidden}.fill{height:100%;width:100%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:20px;transition:width .25s linear,background .25s}
+.message{min-height:26px;margin:15px 0;text-align:center;color:#cbd5e1}.error{color:#f87171}.success{color:#4ade80}
+.controls{display:flex;gap:9px}.controls input{min-width:0;flex:1}
+input,select{font:inherit;padding:12px 13px;border-radius:10px;background:#0f172a;border:1px solid #475569;color:white;outline:none}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #38bdf822}
+button{font:inherit;border:0;border-radius:10px;padding:12px 17px;background:var(--blue);color:#082f49;font-weight:800;cursor:pointer;transition:transform .15s,filter .15s}
+button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}button:disabled{opacity:.45;cursor:not-allowed}
+.secondary{background:#475569;color:white}.danger{background:#7f1d1d;color:white}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.settings label{font-size:12px;color:var(--muted);display:grid;gap:6px}
+.history{margin-top:15px;background:#0f172a;padding:13px;border:1px solid var(--line);border-radius:12px;display:flex;flex-wrap:wrap;gap:8px;max-height:170px;overflow:auto;align-content:flex-start}
+.word{padding:6px 10px;border-radius:20px;background:#1e293b;border:1px solid #475569;font-size:13px;animation:pop .22s ease-out}
+.player{border-color:#0e7490;color:#7dd3fc}.bot{border-color:#9f1239;color:#fda4af}
+@keyframes pop{from{opacity:0;transform:scale(.8) translateY(5px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.bottom{display:flex;gap:9px;margin-top:13px}.bottom button{flex:1}
+.details{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.detail{background:#0f172a;border-radius:10px;padding:10px;text-align:center}.detail b{display:block;color:var(--blue);font-size:18px}.detail small{color:var(--muted);font-size:11px}
+.note{color:var(--muted);font-size:11px;line-height:1.45;margin:14px 2px 0}
+@media(max-width:430px){body{padding:12px}.settings{grid-template-columns:1fr 1fr}.controls button{padding-inline:13px}.details{gap:5px}.detail{padding:8px 4px}}
 </style>
 </head>
 <body>
-<div class="game">
-<h1>Цепочка слов</h1>
-<p class="score">Очки: <span id="score">0</span></p>
-<div class="target">
-<div>Предыдущее слово: <b id="lastWord">Загрузка...</b></div>
-<p>Твоя буква:</p>
-<div class="letter" id="letter">...</div>
-</div>
-<div class="message" id="message">Загрузка словаря...</div>
-<div class="input">
-<input id="wordInput" placeholder="Введи существительное" disabled>
-<button id="ok" disabled>ОК</button>
-</div>
-<div class="history" id="history"></div>
-<button class="reset" id="reset" disabled>Начать заново</button>
-</div>
+<main class="game">
+  <header><h1>Цепочка слов</h1><span class="pill" id="statusPill">Загрузка словаря…</span></header>
+  <section class="stats">
+    <div class="stat"><small>Очки</small><strong id="score">0</strong></div>
+    <div class="stat"><small>Рекорд</small><strong id="best">0</strong></div>
+    <div class="stat"><small>Сложность</small><strong id="levelLabel" style="font-size:15px">Средняя</strong></div>
+  </section>
+
+  <div class="settings">
+    <label>Сложность
+      <select id="difficulty">
+        <option value="easy">Лёгкая</option><option value="medium" selected>Средняя</option><option value="hard">Сложная</option>
+      </select>
+    </label>
+    <label>Время на ход
+      <select id="timeLimit"><option value="15">15 секунд</option><option value="20">20 секунд</option><option value="30" selected>30 секунд</option><option value="45">45 секунд</option><option value="0">Без таймера</option></select>
+    </label>
+  </div>
+
+  <section class="target">
+    <div class="target-label">Предыдущее слово</div>
+    <div class="last" id="lastWord">—</div>
+    <div class="target-label">Твоя буква</div>
+    <div class="letter" id="letter">…</div>
+  </section>
+
+  <div class="timer-wrap">
+    <div class="timer-row"><span>Время на ответ</span><b id="timerText">30 сек.</b></div>
+    <div class="track"><div class="fill" id="timerFill"></div></div>
+  </div>
+  <div class="message" id="message" role="status" aria-live="polite">Подготавливаем игру…</div>
+
+  <div class="controls">
+    <input id="wordInput" type="text" placeholder="Введи существительное" autocomplete="off" autocapitalize="off" disabled>
+    <button id="ok" disabled>Ответить</button>
+  </div>
+  <div class="history" id="history" aria-label="История слов"></div>
+  <div class="bottom">
+    <button class="secondary" id="reset" disabled>Новая игра</button>
+    <button class="secondary" id="statsButton">Статистика</button>
+  </div>
+  <section class="details" id="statsPanel" hidden>
+    <div class="detail"><b id="wins">0</b><small>Победы</small></div>
+    <div class="detail"><b id="losses">0</b><small>Поражения</small></div>
+    <div class="detail"><b id="played">0</b><small>Всего игр</small></div>
+  </section>
+  <p class="note">Слова проверяются по загружаемому русскому словарю и дополнительным правилам. Автоматическая проверка части речи по одному только списку слов не может быть абсолютно точной.</p>
+</main>
 
 <script>
+"use strict";
+const DICTIONARY_URL = "https://raw.githubusercontent.com/deltawenny/russian-words-utf8/master/russian.txt";
+const $ = id => document.getElementById(id);
+const STORAGE_KEY = "wordChainStatsV2";
+let dictionary = [];
+let wordSet = new Set();
+let used = new Set();
+let score = 0;
+let currentWord = "";
+let nextLetter = "";
+let gameOver = true;
+let botThinking = false;
+let timerId = null;
+let remaining = 30;
+let turnStartedAt = 0;
+let gameRecorded = false;
 
-const DICTIONARY_URL =
-"https://raw.githubusercontent.com/deltawenny/russian-words-utf8/master/russian.txt";
+// Список помогает отсеять частые служебные слова и очевидные несуществительные.
+// Для строгой морфологической проверки потребуется отдельная размеченная база.
+const NON_NOUNS = new Set(("И Я ТЫ ОН ОНА ОНО МЫ ВЫ ОНИ ЭТО ТОТ ТА ТО ТЕ ТАК КАК ГДЕ КОГДА КУДА ОТКУДА ЗДЕСЬ ТАМ ТУТ СЮДА ТУДА ВЕЗДЕ НИГДЕ ДА НЕТ НЕ НО ИЛИ А БЫ ЖЕ ЛИ ЧТО ЧТОБЫ ЧТОБ КТО КОТОРЫЙ КОТОРАЯ КОТОРОЕ КОТОРЫЕ МОЙ ТВОЙ СВОЙ НАШ ВАШ ЕГО ЕЁ ИХ МЕНЯ ТЕБЯ СЕБЯ МНЕ ТЕБЕ ЕМУ ЕЙ ИМ НАД ПОД ПЕРЕД ЗА ИЗ ДЛЯ ПРИ ПО БЕЗ ДО ОТ У КО С НА ВО ОБ ПРО ЧЕРЕЗ МЕЖДУ".split(" ")));
+const NOUN_ENDINGS = ["ОСТЬ","ЕНИЕ","АНИЕ","ЕНИЯ","АНИЯ","ИЗМ","ИСТ","ТЕЛЬ","ЩИК","ЧИК","НИК","НИЦА","СТВО","СТВИЕ","ОТА","ЁНОК","ОНОК","АРЬ","АЖ","АЦИЯ","ИЯ","ИЕ","ЬЕ"];
 
-async function loadDictionary() {
-    try {
-        $("message").textContent = "Загружаем словарь...";
-
-        const response = await fetch(DICTIONARY_URL);
-
-        if (!response.ok) {
-            throw new Error("HTTP " + response.status);
-        }
-
-        const text = await response.text();
-
-        dictionary = [...new Set(
-            text.split(/\r?\n/)
-                .map(w => w.trim().toUpperCase())
-                .filter(w => /^[А-ЯЁ]+$/.test(w) && w.length > 1)
-        )];
-
-        if (!dictionary.length) {
-            throw new Error("Словарь пуст");
-        }
-
-        $("wordInput").disabled = false;
-        $("ok").disabled = false;
-        $("reset").disabled = false;
-
-        $("message").textContent =
-            "Загружено слов: " + dictionary.length;
-
-        resetGame();
-
-    } catch (error) {
-        console.error(error);
-        $("message").textContent = "Ошибка: " + error.message;
-        $("message").className = "message error";
-    }
+function loadStats(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {wins:0,losses:0,played:0,best:{easy:0,medium:0,hard:0},words:0}; }
+  catch { return {wins:0,losses:0,played:0,best:{easy:0,medium:0,hard:0},words:0}; }
 }
-
-let dictionary=[];
-let used=new Set();
-let score=0;
-let currentWord="";
-let nextLetter="";
-let gameOver=false;
-
-const $=id=>document.getElementById(id);
-
-async function loadDictionary(){
-try{
-const response=await fetch(DICTIONARY_URL);
-if(!response.ok)throw Error("Ошибка загрузки");
-const text=await response.text();
-
-dictionary=[...new Set(
-text.split(/\r?\n/)
-.map(w=>w.trim().toUpperCase())
-.filter(w=>/^[А-ЯЁ]+$/.test(w)&&w.length>1)
-)];
-
-if(!dictionary.length)throw Error("Пустой словарь");
-
-$("wordInput").disabled=false;
-$("ok").disabled=false;
-$("reset").disabled=false;
-resetGame();
-
-}catch(e){
-$("message").textContent="Не удалось загрузить словарь!";
-$("message").className="message error";
-console.error(e);
+let stats = loadStats();
+function saveStats(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); updateStatsUI(); }
+function updateStatsUI(){
+  $("wins").textContent=stats.wins; $("losses").textContent=stats.losses; $("played").textContent=stats.played;
+  $("best").textContent=stats.best[$("difficulty").value] || 0;
 }
-}
-
+function normalizeWord(value){ return value.trim().toLocaleUpperCase("ru-RU").replace(/Ё/g,"Ё").replace(/\s+/g,""); }
 function getLastLetter(word){
-let i=word.length-1;
-while(i>=0&&"ЬЪЫ".includes(word[i]))i--;
-return word[i]||"";
+  for(let i=word.length-1;i>=0;i--) if(!"ЬЪЫ".includes(word[i])) return word[i];
+  return "";
 }
-
-function addHistory(word,type){
-const el=document.createElement("span");
-el.className="word "+type;
-el.textContent=(type==="player"?"👤 ":"🤖 ")+word;
-$("history").appendChild(el);
+function isLikelyNoun(word){
+  if(word.length<2 || NON_NOUNS.has(word)) return false;
+  // Существительные русского языка обычно имеют характерные именные окончания.
+  // Эвристика намеренно мягкая, чтобы не отбрасывать слова-исключения.
+  if(NOUN_ENDINGS.some(end=>word.endsWith(end))) return true;
+  if(/[А-ЯЁ]$/.test(word) && !/(ТЬСЯ|ТИСЬ|ЛИСЬ|ЕТ|ИТ|ЮТ|УТ|АТ|ЯТ|ЕМ|ИМ|ЫЙ|ИЙ|АЯ|ОЕ|ЫЕ|ИЕ|ОГО|ЕГО|ОМУ|ЕМУ|ЫМИ|ИМИ)$/.test(word)) return true;
+  return false;
 }
-
+function eligible(word){ return isLikelyNoun(word); }
+function setMessage(text,type=""){ $("message").textContent=text; $("message").className="message "+type; }
 function updateTarget(word){
-currentWord=word;
-nextLetter=getLastLetter(word);
-$("lastWord").textContent=word;
-$("letter").textContent=nextLetter;
+  currentWord=word; nextLetter=getLastLetter(word);
+  $("lastWord").textContent=word; $("letter").textContent=nextLetter;
 }
-
+function addHistory(word,type){
+  const el=document.createElement("span"); el.className="word "+type;
+  el.textContent=(type==="player"?"👤 ":"🤖 ")+word; $("history").appendChild(el);
+  $("history").scrollTop=$("history").scrollHeight;
+}
+function candidatesFor(letter){
+  // Индекс по первой букве заметно ускоряет поиск по большому словарю.
+  return (byFirstLetter.get(letter)||[]).filter(w=>!used.has(w));
+}
+let byFirstLetter = new Map();
+function buildIndex(){
+  byFirstLetter=new Map();
+  for(const word of dictionary){
+    const first=word[0]; if(!byFirstLetter.has(first)) byFirstLetter.set(first,[]);
+    byFirstLetter.get(first).push(word);
+  }
+}
+function startTimer(){
+  stopTimer();
+  const limit=Number($("timeLimit").value);
+  remaining=limit;
+  if(!limit){ $("timerText").textContent="∞"; $("timerFill").style.width="100%"; return; }
+  turnStartedAt=Date.now(); renderTimer();
+  timerId=setInterval(()=>{
+    remaining=Math.max(0,limit-(Date.now()-turnStartedAt)/1000);
+    renderTimer();
+    if(remaining<=0){ stopTimer(); finishGame(false,"Время вышло! Ты не успел ответить."); }
+  },100);
+}
+function renderTimer(){
+  const limit=Number($("timeLimit").value)||30;
+  $("timerText").textContent=Math.ceil(remaining)+" сек.";
+  const percent=Math.max(0,remaining/limit*100);
+  $("timerFill").style.width=percent+"%";
+  $("timerFill").style.background=percent<25?"#fb7185":"linear-gradient(90deg,#34d399,#38bdf8)";
+}
+function stopTimer(){ if(timerId){clearInterval(timerId);timerId=null;} }
+function setInputEnabled(enabled){
+  $("wordInput").disabled=!enabled; $("ok").disabled=!enabled;
+}
 function resetGame(){
-const word=dictionary[Math.floor(Math.random()*dictionary.length)];
-used=new Set([word]);
-score=0;
-gameOver=false;
-$("score").textContent=0;
-$("history").innerHTML="";
-$("wordInput").value="";
-$("message").textContent="Твой ход!";
-$("message").className="message";
-updateTarget(word);
-addHistory(word,"bot");
+  stopTimer(); botThinking=false; gameOver=false; gameRecorded=false;
+  used=new Set(); score=0; $("score").textContent="0"; $("history").innerHTML="";
+  $("wordInput").value=""; setInputEnabled(true);
+  const start=dictionary[Math.floor(Math.random()*dictionary.length)];
+  used.add(start); updateTarget(start); addHistory(start,"bot");
+  setMessage("Твой ход! Подбери существительное на букву "+nextLetter+".");
+  startTimer(); $("wordInput").focus();
 }
-
+function finishGame(playerWon,message){
+  if(gameOver)return;
+  gameOver=true; botThinking=false; stopTimer(); setInputEnabled(false);
+  setMessage(message,playerWon?"success":"error");
+  if(!gameRecorded){
+    gameRecorded=true; stats.played++;
+    if(playerWon) stats.wins++; else stats.losses++;
+    stats.words+=used.size;
+    const level=$("difficulty").value;
+    stats.best[level]=Math.max(stats.best[level]||0,score);
+    saveStats();
+  }
+}
+function chooseBotWord(letter){
+  const choices=candidatesFor(letter);
+  if(!choices.length)return null;
+  const level=$("difficulty").value;
+  if(level==="easy") return choices[Math.floor(Math.random()*choices.length)];
+  // Оцениваем, сколько ответов останется у игрока после слова бота.
+  // Меньше доступных ответов — сильнее ход.
+  const scored=choices.map(word=>{
+    const out=getLastLetter(word);
+    const replies=(byFirstLetter.get(out)||[]).reduce((n,w)=>n+(!used.has(w)&&w!==word?1:0),0);
+    return {word,replies};
+  }).sort((a,b)=>a.replies-b.replies);
+  if(level==="medium"){
+    const pool=scored.slice(0,Math.max(1,Math.ceil(scored.length*.35)));
+    return pool[Math.floor(Math.random()*pool.length)].word;
+  }
+  // На сложном уровне выбираем лучший ход; небольшая случайность предотвращает однообразие.
+  const bestCount=scored[0].replies;
+  const best=scored.filter(x=>x.replies===bestCount);
+  return best[Math.floor(Math.random()*best.length)].word;
+}
 function botTurn(letter){
-const candidates=dictionary.filter(w=>
-w.startsWith(letter)&&!used.has(w)
-);
-
-if(!candidates.length){
-$("message").textContent="🤖 Я проиграл! Ты победил! 🎉";
-$("message").className="message success";
-gameOver=true;
-return;
+  if(gameOver)return;
+  const word=chooseBotWord(letter);
+  if(!word){ finishGame(true,"🤖 У меня нет подходящего слова. Ты победил! 🎉"); return; }
+  used.add(word); updateTarget(word); addHistory(word,"bot");
+  botThinking=false; setInputEnabled(true);
+  setMessage("Мой ход: "+word+". Теперь твоя очередь!");
+  startTimer(); $("wordInput").focus();
 }
-
-const word=candidates[Math.floor(Math.random()*candidates.length)];
-used.add(word);
-updateTarget(word);
-addHistory(word,"bot");
-$("message").textContent="Твой ход!";
-$("message").className="message";
-}
-
 function playWord(){
-if(gameOver)return;
+  if(gameOver||botThinking)return;
+  const word=normalizeWord($("wordInput").value); $("wordInput").value="";
+  if(!word)return;
+  if(!/^[А-ЯЁ]+$/.test(word)){ showError("Используй только русские буквы."); return; }
+  if(used.has(word)){ showError("Это слово уже использовалось."); return; }
+  if(word[0]!==nextLetter){ showError("Нужно слово на букву «"+nextLetter+"»."); return; }
+  if(!wordSet.has(word)){ showError("Такого слова нет в загруженном словаре."); return; }
+  if(!eligible(word)){ showError("Похоже, это не существительное. Попробуй другое слово."); return; }
 
-const word=$("wordInput").value.trim().toUpperCase().replace(/\s/g,"");
-$("wordInput").value="";
-
-if(!word)return;
-
-if(!/^[А-ЯЁ]+$/.test(word)){
-showError("Вводи только русские буквы!");
-return;
+  stopTimer(); used.add(word); score+=10; $("score").textContent=score;
+  addHistory(word,"player"); stats.words++; saveStats();
+  const letter=getLastLetter(word);
+  botThinking=true; setInputEnabled(false); setMessage("🤖 Подбираю ответ…");
+  window.setTimeout(()=>botTurn(letter),450);
 }
-
-if(used.has(word)){
-showError("Это слово уже использовалось!");
-return;
+function showError(text){ setMessage(text,"error"); }
+async function loadDictionary(){
+  try{
+    setMessage("Загружаем словарь…");
+    const response=await fetch(DICTIONARY_URL,{cache:"force-cache"});
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    const text=await response.text();
+    dictionary=[...new Set(text.split(/\r?\n/).map(w=>normalizeWord(w)).filter(w=>/^[А-ЯЁ]+$/.test(w)&&w.length>1&&eligible(w)))];
+    if(dictionary.length<100)throw new Error("Словарь загрузился не полностью");
+    wordSet=new Set(dictionary); buildIndex();
+    $("statusPill").textContent="Словарь: "+dictionary.length.toLocaleString("ru-RU")+" слов";
+    $("reset").disabled=false; $("difficulty").disabled=false; $("timeLimit").disabled=false;
+    updateStatsUI(); resetGame();
+  }catch(error){
+    console.error(error); $("statusPill").textContent="Нет словаря";
+    setMessage("Не удалось загрузить словарь. Проверь подключение к интернету и обнови страницу.","error");
+  }
 }
-
-if(word[0]!==nextLetter){
-showError("Нужно слово на букву "+nextLetter);
-return;
-}
-
-if(!dictionary.includes(word)){
-showError("Такого слова нет в словаре!");
-return;
-}
-
-used.add(word);
-score+=10;
-$("score").textContent=score;
-addHistory(word,"player");
-
-const letter=getLastLetter(word);
-$("message").textContent="Робот думает...";
-
-setTimeout(()=>botTurn(letter),400);
-}
-
-function showError(text){
-$("message").textContent=text;
-$("message").className="message error";
-}
-
 $("ok").addEventListener("click",playWord);
-$("wordInput").addEventListener("keydown",e=>{
-if(e.key==="Enter")playWord();
-});
+$("wordInput").addEventListener("keydown",e=>{if(e.key==="Enter")playWord();});
 $("reset").addEventListener("click",resetGame);
-
+$("difficulty").addEventListener("change",()=>{ $("levelLabel").textContent={easy:"Лёгкая",medium:"Средняя",hard:"Сложная"}[$("difficulty").value]; updateStatsUI(); if(!gameOver)resetGame(); });
+$("timeLimit").addEventListener("change",()=>{if(!gameOver&&!botThinking)startTimer();});
+$("statsButton").addEventListener("click",()=>{const panel=$("statsPanel");panel.hidden=!panel.hidden;$("statsButton").textContent=panel.hidden?"Статистика":"Скрыть статистику";});
+$("levelLabel").textContent="Средняя";
+updateStatsUI();
 loadDictionary();
 </script>
 </body>
-</html>
+</html>'''
+
+path = Path("/mnt/data/word_chain_deluxe.html")
+path.write_text(html, encoding="utf-8")
+print(f"Создан файл: {path} ({path.stat().st_size} байт)")
