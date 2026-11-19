@@ -1,6 +1,4 @@
-from pathlib import Path
-
-html = r'''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -86,7 +84,6 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
 <script>
 "use strict";
 
-// Словарь содержит отдельные CSV-записи существительных и их словоформ.
 const NOUNS_URL = "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.csv";
 const $ = id => document.getElementById(id);
 const STORAGE_KEY = "wordChainStatsV3";
@@ -108,7 +105,6 @@ function normalizeWord(value) {
   return value.trim().toLocaleUpperCase("ru-RU").replace(/Ё/g, "Ё").replace(/\s+/g, "");
 }
 
-// Разбираем CSV с учётом кавычек и запятых внутри полей.
 function parseCSVLine(line) {
   const fields = [];
   let field = "", quoted = false;
@@ -136,7 +132,6 @@ function buildNounDictionary(csv) {
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
     const row = parseCSVLine(lines[i]);
-    // В nouns.csv: 1-я колонка — начальная форма, 10–22 — падежные формы.
     addNounForm(set, row[0]);
     for (let col = 9; col <= 21 && col < row.length; col++) addNounForm(set, row[col]);
   }
@@ -150,23 +145,28 @@ function loadStats() {
     return saved ? {...fallback, ...saved, best:{...fallback.best, ...(saved.best || {})}} : fallback;
   } catch { return fallback; }
 }
+
 let stats = loadStats();
+
 function saveStats() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch {}
   updateStatsUI();
 }
+
 function updateStatsUI() {
   $("wins").textContent = stats.wins;
   $("losses").textContent = stats.losses;
   $("played").textContent = stats.played;
   $("best").textContent = stats.best[$("difficulty").value] || 0;
 }
+
 function getLastLetter(word) {
   for (let i = word.length - 1; i >= 0; i--) {
     if (!"ЬЪЫ".includes(word[i])) return word[i];
   }
   return "";
 }
+
 function buildIndex() {
   byFirstLetter = new Map();
   for (const word of dictionary) {
@@ -174,13 +174,16 @@ function buildIndex() {
     byFirstLetter.get(word[0]).push(word);
   }
 }
+
 function candidatesFor(letter) {
   return (byFirstLetter.get(letter) || []).filter(word => !used.has(word));
 }
+
 function setMessage(text, type="") {
   $("message").textContent = text;
   $("message").className = "message " + type;
 }
+
 function addHistory(word, type) {
   const el = document.createElement("span");
   el.className = "word " + type;
@@ -188,14 +191,17 @@ function addHistory(word, type) {
   $("history").appendChild(el);
   $("history").scrollTop = $("history").scrollHeight;
 }
+
 function updateTarget(word) {
   nextLetter = getLastLetter(word);
   $("lastWord").textContent = word;
   $("letter").textContent = nextLetter;
 }
+
 function stopTimer() {
   if (timerId) { clearInterval(timerId); timerId = null; }
 }
+
 function renderTimer() {
   const limit = Number($("timeLimit").value) || 30;
   const percent = Math.max(0, remaining / limit * 100);
@@ -203,6 +209,7 @@ function renderTimer() {
   $("timerFill").style.width = percent + "%";
   $("timerFill").style.background = percent < 25 ? "#fb7185" : "linear-gradient(90deg,#34d399,#38bdf8)";
 }
+
 function startTimer() {
   stopTimer();
   const limit = Number($("timeLimit").value);
@@ -223,10 +230,12 @@ function startTimer() {
     }
   }, 100);
 }
+
 function enableInput(enabled) {
   $("wordInput").disabled = !enabled;
   $("ok").disabled = !enabled;
 }
+
 function resetGame() {
   stopTimer();
   botThinking = false;
@@ -246,6 +255,7 @@ function resetGame() {
   startTimer();
   $("wordInput").focus();
 }
+
 function finishGame(playerWon, message) {
   if (gameOver) return;
   gameOver = true;
@@ -262,6 +272,7 @@ function finishGame(playerWon, message) {
     saveStats();
   }
 }
+
 function chooseBotWord(letter) {
   const choices = candidatesFor(letter);
   if (!choices.length) return null;
@@ -282,6 +293,7 @@ function chooseBotWord(letter) {
   const best = scored.filter(item => item.replies === minimum);
   return best[Math.floor(Math.random() * best.length)].word;
 }
+
 function botTurn(letter) {
   if (gameOver) return;
   const word = chooseBotWord(letter);
@@ -298,6 +310,7 @@ function botTurn(letter) {
   startTimer();
   $("wordInput").focus();
 }
+
 function playWord() {
   if (gameOver || botThinking) return;
   const word = normalizeWord($("wordInput").value);
@@ -318,6 +331,7 @@ function playWord() {
   setMessage("🤖 Подбираю существительное…");
   window.setTimeout(() => botTurn(getLastLetter(word)), 450);
 }
+
 async function loadDictionary() {
   try {
     const response = await fetch(NOUNS_URL, {cache:"force-cache"});
@@ -335,29 +349,32 @@ async function loadDictionary() {
     setMessage("Не удалось загрузить словарь существительных. Проверь интернет и обнови страницу.", "error");
   }
 }
+
 $("ok").addEventListener("click", playWord);
-$("wordInput").addEventListener("keydown", event => { if (event.key === "Enter") playWord(); });
+$("wordInput").addEventListener("keydown", event => {
+  if (event.key === "Enter") playWord();
+});
 $("reset").addEventListener("click", resetGame);
+
 $("difficulty").addEventListener("change", () => {
   $("levelLabel").textContent = {easy:"Лёгкая",medium:"Средняя",hard:"Сложная"}[$("difficulty").value];
   updateStatsUI();
   if (!gameOver && dictionary.length) resetGame();
 });
+
 $("timeLimit").addEventListener("change", () => {
   if (!gameOver && !botThinking) startTimer();
 });
+
 $("statsButton").addEventListener("click", () => {
   const panel = $("statsPanel");
   panel.hidden = !panel.hidden;
   $("statsButton").textContent = panel.hidden ? "Статистика" : "Скрыть статистику";
 });
+
 $("levelLabel").textContent = "Средняя";
 updateStatsUI();
 loadDictionary();
 </script>
 </body>
-</html>'''
-
-path = Path("/mnt/data/word_chain_deluxe_fixed.html")
-path.write_text(html, encoding="utf-8")
-print(f"Создан исправленный HTML-файл: {path} ({path.stat().st_size:,} байт)")
+</html>
