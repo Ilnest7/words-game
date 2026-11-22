@@ -136,8 +136,8 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 /* ================================= */
 
 const NOUNS_URLS = [
-  "https://raw.githubusercontent.com/Harrix/Russian-Nouns/main/dist/russian_nouns.txt",
-  "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.csv"
+  "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.csv",
+  "https://raw.githubusercontent.com/Harrix/Russian-Nouns/main/dist/russian_nouns.txt"
 ];
 
 const $ = id => document.getElementById(id);
@@ -174,13 +174,26 @@ function stem(word) {
   return w;
 }
 
+function parseCSVLine(line) {
+  const fields = []; let field = "", quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (quoted && line[i + 1] === '"') { field += '"'; i++; } else quoted = !quoted;
+    } else if (char === "," && !quoted) { fields.push(field); field = ""; } else field += char;
+  }
+  fields.push(field); return fields;
+}
+
 function addForm(set, value) { const w = normalizeWord(value); if (isValidWord(w)) set.add(w); }
 
 function buildDictionary(text) {
   const set = new Set();
   for (const line of text.split(/\r?\n/)) {
-    const match = line.match(/[а-яА-ЯёЁ]{2,}/);
-    if (match) addForm(set, match[0]);
+    if (!line.trim()) continue;
+    if (line.includes(",") || line.includes('"')) {
+      for (const col of parseCSVLine(line)) addForm(set, col);
+    } else addForm(set, line);
   }
   return [...set];
 }
