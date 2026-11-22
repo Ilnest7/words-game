@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0f172a">
-<title>Цепочка слов</title>
+<title>Цепочка слов — рейтинг</title>
 <style>
 :root{color-scheme:dark;--bg:#0f172a;--panel:#1e293b;--panel2:#0b1222;--line:#334155;--blue:#38bdf8;--pink:#fb7185;--green:#34d399;--muted:#94a3b8}
 *{box-sizing:border-box}
@@ -36,15 +36,36 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
 .bottom{display:flex;gap:9px;margin-top:13px}.bottom button{flex:1}
 .details{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
 .detail{background:#0f172a;border-radius:10px;padding:10px;text-align:center}.detail b{display:block;color:var(--blue);font-size:18px}.detail small{color:var(--muted);font-size:11px}
+/* модалка */
+.modal{position:fixed;inset:0;background:#020617cc;display:grid;place-items:center;padding:20px;z-index:10}
+.modal[hidden]{display:none}
+.modal-card{width:min(100%,440px);background:var(--panel);border:1px solid #3b4c65;border-radius:18px;padding:22px}
+.modal-card h2{margin:0 0 14px;color:var(--blue);font-size:22px}
+.modal-card p{margin:0 0 12px;color:var(--muted);font-size:14px}
+.leader-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.leader-row:last-child{border-bottom:0}
+.leader-row b{color:var(--green)}
+.leader-row .place{color:var(--muted);width:26px}
+.modal-actions{display:flex;gap:9px;margin-top:16px}.modal-actions button{flex:1}
 @media(max-width:430px){body{padding:12px}.controls button{padding-inline:13px}.details{gap:5px}.detail{padding:8px 4px}}
 </style>
 </head>
 <body>
 <main class="game">
   <header><h1>Цепочка слов</h1></header>
+
+  <!-- Имя игрока -->
+  <section class="stats" style="grid-template-columns:1fr">
+    <div class="stat" style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+      <small style="margin:0">Игрок</small>
+      <strong id="playerName" style="font-size:16px;color:var(--blue)">—</strong>
+      <button class="secondary" id="changeName" style="padding:6px 10px;font-size:12px">Сменить</button>
+    </div>
+  </section>
+
   <section class="stats">
     <div class="stat"><small>Очки</small><strong id="score">0</strong></div>
-    <div class="stat"><small>Рекорд</small><strong id="best">0</strong></div>
+    <div class="stat"><small>Рекорд (лок.)</small><strong id="best">0</strong></div>
     <div class="stat"><small>Сложность</small><strong id="levelLabel" style="font-size:15px">Средняя</strong></div>
   </section>
   <div class="settings">
@@ -73,6 +94,7 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
   <div class="history" id="history" aria-label="История слов"></div>
   <div class="bottom">
     <button class="secondary" id="reset" disabled>Новая игра</button>
+    <button class="secondary" id="topButton">🏆 Топ-50</button>
     <button class="secondary" id="statsButton">Статистика</button>
   </div>
   <section class="details" id="statsPanel" hidden>
@@ -81,21 +103,51 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
     <div class="detail"><b id="played">0</b><small>Всего игр</small></div>
   </section>
 </main>
+
+<!-- Модалка: имя -->
+<div class="modal" id="nameModal" hidden>
+  <div class="modal-card">
+    <h2>Как тебя зовут?</h2>
+    <p>Имя нужно для общего рейтинга. Можно менять в любой момент.</p>
+    <input id="nameInput" maxlength="20" placeholder="Например, Вася" style="width:100%">
+    <div class="modal-actions">
+      <button id="saveName">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка: топ -->
+<div class="modal" id="topModal" hidden>
+  <div class="modal-card">
+    <h2>🏆 Топ-50 игроков</h2>
+    <div id="topList" style="max-height: 350px; overflow-y: auto; padding-right: 4px;"><p>Загрузка…</p></div>
+    <div class="modal-actions">
+      <button class="secondary" id="closeTop">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <script>
 "use strict";
 
-// Основной и запасной источники списка существительных (по одному слову в строке)
+/* ====== НАСТРОЙКА SUPABASE ====== */
+const SUPABASE_URL = "https://icpzkpziwimnanirqxmq.supabase.co";   
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljcGprcHppd2ltbmFuaXJxeG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MDAwMDB9.placeholder_key"; // Замени на свой реальный anon key из панели Supabase, если этот не сработает
+/* ================================= */
+
 const NOUNS_URLS = [
-  "https://raw.githubusercontent.com/Harrix/Russian-Nouns/main/dist/russian_nouns.txt",
-  "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.txt"
+  "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.csv",
+  "https://raw.githubusercontent.com/Harrix/Russian-Nouns/main/dist/russian_nouns.txt"
 ];
 
 const $ = id => document.getElementById(id);
-const STORAGE_KEY = "wordChainStatsV3";
+const STORAGE_KEY = "wordChainStatsV5";
+const NAME_KEY = "wordChainPlayerName";
 const MIN_DICTIONARY_SIZE = 1000;
 
 let dictionary = [];
 let wordSet = new Set();
+let rootSet = new Set();
 let byFirstLetter = new Map();
 let used = new Set();
 let score = 0;
@@ -106,41 +158,72 @@ let timerId = null;
 let remaining = 30;
 let turnStartedAt = 0;
 let gameRecorded = false;
+let playerName = localStorage.getItem(NAME_KEY) || "";
 
-// Нормализация: верхний регистр, ё -> е, только буквы
 function normalizeWord(value) {
-  return String(value || "")
-    .trim()
-    .toLocaleUpperCase("ru-RU")
-    .replace(/Ё/g, "Е")
-    .replace(/[^А-Я]/g, "");
+  return String(value || "").trim().toLocaleUpperCase("ru-RU").replace(/Ё/g, "Е").replace(/[^А-Я]/g, "");
+}
+function isValidWord(word) { return /^[А-Я]{2,}$/.test(word); }
+
+function stem(word) {
+  let w = word;
+  const endings = ["АМИ","ЯМИ","ОВ","ЕВ","АХ","ЯХ","АМ","ЯМ","ОЙ","ЕЙ","ЫЙ","ИЙ","АЯ","ЯЯ","ОЕ","ЕЕ","ЫЕ","ИЕ","У","Ю","А","Я","О","Е","Ы","И","Й","Ь"];
+  for (const end of endings) {
+    if (w.endsWith(end) && w.length - end.length >= 3) { w = w.slice(0, -end.length); break; }
+  }
+  return w;
 }
 
-// Принимаем слово, если это 2+ русских буквы
-function isValidWord(word) {
-  return /^[А-Я]{2,}$/.test(word);
+function parseCSVLine(line) {
+  const fields = []; let field = "", quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (quoted && line[i + 1] === '"') { field += '"'; i++; } else quoted = !quoted;
+    } else if (char === "," && !quoted) { fields.push(field); field = ""; } else field += char;
+  }
+  fields.push(field); return fields;
 }
 
-// Строим словарь из текста «одно слово в строке»
-function buildNounDictionary(text) {
+function addForm(set, value) { const w = normalizeWord(value); if (isValidWord(w)) set.add(w); }
+
+function buildDictionary(text) {
   const set = new Set();
   for (const line of text.split(/\r?\n/)) {
-    const word = normalizeWord(line);
-    if (isValidWord(word)) set.add(word);
+    if (!line.trim()) continue;
+    if (line.includes(",") || line.includes('"')) {
+      for (const col of parseCSVLine(line)) addForm(set, col);
+    } else addForm(set, line);
   }
   return [...set];
+}
+
+function buildIndex() {
+  byFirstLetter = new Map(); rootSet = new Set();
+  for (const word of dictionary) {
+    if (!byFirstLetter.has(word[0])) byFirstLetter.set(word[0], []);
+    byFirstLetter.get(word[0]).push(word);
+    rootSet.add(stem(word));
+  }
+}
+
+function wordExists(word) {
+  if (wordSet.has(word)) return true;
+  const root = stem(word);
+  return root.length >= 3 && rootSet.has(root);
+}
+
+function candidatesFor(letter) {
+  return (byFirstLetter.get(letter) || []).filter(w => !used.has(w));
 }
 
 function loadStats() {
   const fallback = {wins:0, losses:0, played:0, best:{easy:0,medium:0,hard:0}};
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved
-      ? {...fallback, ...saved, best:{...fallback.best, ...(saved.best || {})}}
-      : fallback;
+    return saved ? {...fallback, ...saved, best:{...fallback.best, ...(saved.best || {})}} : fallback;
   } catch { return fallback; }
 }
-
 let stats = loadStats();
 
 function saveStats() {
@@ -153,25 +236,12 @@ function updateStatsUI() {
   $("losses").textContent = stats.losses;
   $("played").textContent = stats.played;
   $("best").textContent = stats.best[$("difficulty").value] || 0;
+  $("playerName").textContent = playerName || "—";
 }
 
 function getLastLetter(word) {
-  for (let i = word.length - 1; i >= 0; i--) {
-    if (!"ЬЪЫ".includes(word[i])) return word[i];
-  }
+  for (let i = word.length - 1; i >= 0; i--) if (!"ЬЪЫ".includes(word[i])) return word[i];
   return "";
-}
-
-function buildIndex() {
-  byFirstLetter = new Map();
-  for (const word of dictionary) {
-    if (!byFirstLetter.has(word[0])) byFirstLetter.set(word[0], []);
-    byFirstLetter.get(word[0]).push(word);
-  }
-}
-
-function candidatesFor(letter) {
-  return (byFirstLetter.get(letter) || []).filter(word => !used.has(word));
 }
 
 function setMessage(text, type = "") {
@@ -193,53 +263,36 @@ function updateTarget(word) {
   $("letter").textContent = nextLetter;
 }
 
-function stopTimer() {
-  if (timerId) { clearInterval(timerId); timerId = null; }
-}
+function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
 
 function renderTimer() {
   const limit = Number($("timeLimit").value) || 30;
   const percent = Math.max(0, (remaining / limit) * 100);
   $("timerText").textContent = Math.ceil(remaining) + " сек.";
   $("timerFill").style.width = percent + "%";
-  $("timerFill").style.background = percent < 25
-    ? "#fb7185"
-    : "linear-gradient(90deg,#34d399,#38bdf8)";
+  $("timerFill").style.background = percent < 25 ? "#fb7185" : "linear-gradient(90deg,#34d399,#38bdf8)";
 }
 
 function startTimer() {
   stopTimer();
   const limit = Number($("timeLimit").value);
   remaining = limit;
-  if (!limit) {
-    $("timerText").textContent = "∞";
-    $("timerFill").style.width = "100%";
-    return;
-  }
+  if (!limit) { $("timerText").textContent = "∞"; $("timerFill").style.width = "100%"; return; }
   turnStartedAt = Date.now();
   renderTimer();
   timerId = setInterval(() => {
     remaining = Math.max(0, limit - (Date.now() - turnStartedAt) / 1000);
     renderTimer();
-    if (remaining <= 0) {
-      stopTimer();
-      finishGame(false, "Время вышло! Ты не успел ответить.");
-    }
+    if (remaining <= 0) { stopTimer(); finishGame(false, "Время вышло! Ты не успел ответить."); }
   }, 100);
 }
 
-function enableInput(enabled) {
-  $("wordInput").disabled = !enabled;
-  $("ok").disabled = !enabled;
-}
+function enableInput(enabled) { $("wordInput").disabled = !enabled; $("ok").disabled = !enabled; }
 
 function resetGame() {
   stopTimer();
-  botThinking = false;
-  gameOver = false;
-  gameRecorded = false;
-  used = new Set();
-  score = 0;
+  botThinking = false; gameOver = false; gameRecorded = false;
+  used = new Set(); score = 0;
   $("score").textContent = "0";
   $("history").innerHTML = "";
   $("wordInput").value = "";
@@ -255,10 +308,8 @@ function resetGame() {
 
 function finishGame(playerWon, message) {
   if (gameOver) return;
-  gameOver = true;
-  botThinking = false;
-  stopTimer();
-  enableInput(false);
+  gameOver = true; botThinking = false;
+  stopTimer(); enableInput(false);
   setMessage(message, playerWon ? "success" : "error");
   if (!gameRecorded) {
     gameRecorded = true;
@@ -267,6 +318,7 @@ function finishGame(playerWon, message) {
     const level = $("difficulty").value;
     stats.best[level] = Math.max(stats.best[level] || 0, score);
     saveStats();
+    submitScore(score);
   }
 }
 
@@ -275,13 +327,10 @@ function chooseBotWord(letter) {
   if (!choices.length) return null;
   const level = $("difficulty").value;
   if (level === "easy") return choices[Math.floor(Math.random() * choices.length)];
-
   const scored = choices.map(word => {
     const ending = getLastLetter(word);
-    const replies = candidatesFor(ending).length;
-    return {word, replies};
+    return {word, replies: candidatesFor(ending).length};
   }).sort((a, b) => a.replies - b.replies);
-
   if (level === "medium") {
     const pool = scored.slice(0, Math.max(1, Math.ceil(scored.length * 0.35)));
     return pool[Math.floor(Math.random() * pool.length)].word;
@@ -294,15 +343,11 @@ function chooseBotWord(letter) {
 function botTurn(letter) {
   if (gameOver) return;
   const word = chooseBotWord(letter);
-  if (!word) {
-    finishGame(true, "🤖 У меня нет подходящего существительного. Ты победил! 🎉");
-    return;
-  }
+  if (!word) { finishGame(true, "🤖 У меня нет подходящего существительного. Ты победил! 🎉"); return; }
   used.add(word);
   updateTarget(word);
   addHistory(word, "bot");
-  botThinking = false;
-  enableInput(true);
+  botThinking = false; enableInput(true);
   setMessage("Мой ход: " + word + ". Теперь твоя очередь!");
   startTimer();
   $("wordInput").focus();
@@ -316,18 +361,91 @@ function playWord() {
   if (!isValidWord(word)) { setMessage("Вводи только русские буквы (2+ символа).", "error"); return; }
   if (used.has(word)) { setMessage("Это слово уже использовалось.", "error"); return; }
   if (word[0] !== nextLetter) { setMessage("Нужно слово на букву «" + nextLetter + "».", "error"); return; }
-  if (!wordSet.has(word)) { setMessage("Такого существительного нет в словаре.", "error"); return; }
+  if (!wordExists(word)) { setMessage("Такого существительного нет в словаре.", "error"); return; }
 
   stopTimer();
-  used.add(word);
-  score += 10;
+  used.add(word); score += 10;
   $("score").textContent = score;
   addHistory(word, "player");
-  botThinking = true;
-  enableInput(false);
+  botThinking = true; enableInput(false);
   setMessage("🤖 Подбираю существительное…");
   window.setTimeout(() => botTurn(getLastLetter(word)), 450);
 }
+
+/* ====== SUPABASE: рейтинг ====== */
+
+async function submitScore(points) {
+  if (!playerName) return;
+  try {
+    const res = await fetch(SUPABASE_URL + "/rest/v1/scores", {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({name: playerName, score: points})
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+  } catch (e) {
+    console.warn("Не удалось отправить рекорд:", e);
+  }
+}
+
+async function fetchTop() {
+  const list = $("topList");
+  list.innerHTML = "<p>Загрузка…</p>";
+  
+  const modalTitle = document.querySelector("#topModal h2");
+  if (modalTitle) modalTitle.textContent = "🏆 Топ-50 игроков";
+
+  try {
+    const res = await fetch(
+      SUPABASE_URL + "/rest/v1/scores?select=name,score&order=score.desc&limit=50",
+      {headers: {"apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY}}
+    );
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const rows = await res.json();
+    if (!rows.length) { list.innerHTML = "<p>Пока никто не играл.</p>"; return; }
+    list.innerHTML = "";
+    rows.forEach((row, i) => {
+      const div = document.createElement("div");
+      div.className = "leader-row";
+      const place = document.createElement("span");
+      place.className = "place";
+      place.textContent = "#" + (i + 1);
+      const name = document.createElement("span");
+      name.textContent = row.name;
+      const pts = document.createElement("b");
+      pts.textContent = row.score;
+      div.append(place, name, pts);
+      list.appendChild(div);
+    });
+  } catch (e) {
+    console.error(e);
+    list.innerHTML = "<p class='error'>Не удалось загрузить рейтинг.</p>";
+  }
+}
+
+/* ====== Имя ====== */
+
+function openNameModal() {
+  $("nameInput").value = playerName;
+  $("nameModal").hidden = false;
+  $("nameInput").focus();
+}
+
+function saveName() {
+  const val = $("nameInput").value.trim().slice(0, 20);
+  if (!val) return;
+  playerName = val;
+  localStorage.setItem(NAME_KEY, val);
+  $("nameModal").hidden = true;
+  updateStatsUI();
+}
+
+/* ====== Словарь ====== */
 
 async function fetchDictionaryText() {
   let lastError = null;
@@ -338,10 +456,7 @@ async function fetchDictionaryText() {
       const text = await response.text();
       if (text.trim().startsWith("<")) throw new Error("Получен HTML вместо словаря");
       return text;
-    } catch (error) {
-      lastError = error;
-      console.warn("Источник словаря недоступен:", url, error);
-    }
+    } catch (error) { lastError = error; console.warn("Источник словаря недоступен:", url, error); }
   }
   throw lastError || new Error("Все источники недоступны");
 }
@@ -349,10 +464,8 @@ async function fetchDictionaryText() {
 async function loadDictionary() {
   try {
     const text = await fetchDictionaryText();
-    dictionary = buildNounDictionary(text);
-    if (dictionary.length < MIN_DICTIONARY_SIZE) {
-      throw new Error("Словарь загрузился не полностью: " + dictionary.length + " слов");
-    }
+    dictionary = buildDictionary(text);
+    if (dictionary.length < MIN_DICTIONARY_SIZE) throw new Error("Словарь загрузился не полностью: " + dictionary.length + " слов");
     wordSet = new Set(dictionary);
     buildIndex();
     $("reset").disabled = false;
@@ -364,10 +477,10 @@ async function loadDictionary() {
   }
 }
 
+/* ====== Обработчики ====== */
+
 $("ok").addEventListener("click", playWord);
-$("wordInput").addEventListener("keydown", event => {
-  if (event.key === "Enter") playWord();
-});
+$("wordInput").addEventListener("keydown", e => { if (e.key === "Enter") playWord(); });
 $("reset").addEventListener("click", resetGame);
 
 $("difficulty").addEventListener("change", () => {
@@ -375,10 +488,7 @@ $("difficulty").addEventListener("change", () => {
   updateStatsUI();
   if (!gameOver && dictionary.length) resetGame();
 });
-
-$("timeLimit").addEventListener("change", () => {
-  if (!gameOver && !botThinking) startTimer();
-});
+$("timeLimit").addEventListener("change", () => { if (!gameOver && !botThinking) startTimer(); });
 
 $("statsButton").addEventListener("click", () => {
   const panel = $("statsPanel");
@@ -386,8 +496,21 @@ $("statsButton").addEventListener("click", () => {
   $("statsButton").textContent = panel.hidden ? "Статистика" : "Скрыть статистику";
 });
 
+$("topButton").addEventListener("click", () => {
+  $("topModal").hidden = false;
+  fetchTop();
+});
+$("closeTop").addEventListener("click", () => { $("topModal").hidden = true; });
+
+$("changeName").addEventListener("click", openNameModal);
+$("saveName").addEventListener("click", saveName);
+$("nameInput").addEventListener("keydown", e => { if (e.key === "Enter") saveName(); });
+
 $("levelLabel").textContent = "Средняя";
 updateStatsUI();
+
+if (!playerName) openNameModal();
+
 loadDictionary();
 </script>
 </body>
