@@ -42,6 +42,7 @@
     }
 
     header { text-align: center; }
+
     h1 {
       margin: 0;
       color: var(--blue);
@@ -155,7 +156,11 @@
       border-radius: 16px;
     }
 
-    .target-label { color: var(--muted); font-size: 13px; }
+    .target-label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     .last {
       margin: 5px 0 12px;
       overflow-wrap: anywhere;
@@ -172,6 +177,7 @@
     }
 
     .timer-wrap { margin: 16px 0 4px; }
+
     .timer-row {
       display: flex;
       justify-content: space-between;
@@ -205,7 +211,11 @@
     .error { color: #f87171; }
     .success { color: #4ade80; }
 
-    .controls { display: flex; gap: 9px; }
+    .controls {
+      display: flex;
+      gap: 9px;
+    }
+
     .controls input { flex: 1; }
 
     .history {
@@ -254,6 +264,8 @@
       margin-top: 14px;
     }
 
+    .details[hidden], .modal[hidden] { display: none; }
+
     .detail {
       padding: 10px;
       text-align: center;
@@ -267,7 +279,10 @@
       font-size: 18px;
     }
 
-    .detail small { color: var(--muted); font-size: 11px; }
+    .detail small {
+      color: var(--muted);
+      font-size: 11px;
+    }
 
     .modal {
       position: fixed;
@@ -278,8 +293,6 @@
       padding: 20px;
       background: #020617cc;
     }
-
-    .modal[hidden], .details[hidden] { display: none; }
 
     .modal-card {
       width: min(100%, 440px);
@@ -312,7 +325,10 @@
 
     .leader-row:last-child { border-bottom: 0; }
     .leader-row b { color: var(--green); }
-    .leader-row .place { width: 30px; color: var(--muted); }
+    .leader-row .place {
+      width: 30px;
+      color: var(--muted);
+    }
 
     .modal-actions {
       display: flex;
@@ -326,7 +342,10 @@
       body { padding: 12px; }
       .controls button { padding-inline: 13px; }
       .bottom { gap: 6px; }
-      .bottom button { padding-inline: 8px; font-size: 13px; }
+      .bottom button {
+        padding-inline: 8px;
+        font-size: 13px;
+      }
       .details { gap: 5px; }
       .detail { padding: 8px 4px; }
     }
@@ -360,6 +379,7 @@
           <option value="hard">Сложная</option>
         </select>
       </label>
+
       <label>Время на ход
         <select id="timeLimit">
           <option value="15">15 секунд</option>
@@ -438,14 +458,12 @@
   <script>
     "use strict";
 
-    /*
-      Для общего рейтинга:
-      1. Укажите URL своего проекта Supabase.
-      2. Укажите публичный anon key (не service_role).
-      3. Создайте таблицу scores и настройте RLS-политики.
-    */
+    // URL вашего проекта Supabase.
     const SUPABASE_URL = "https://icpzkpziwimnanirqxmq.supabase.co";
-    const SUPABASE_KEY = ""; // Вставьте сюда публичный anon key
+
+    // Вставьте сюда публичный anon или sb_publishable ключ из Supabase.
+    // Не вставляйте service_role или secret key.
+    const SUPABASE_KEY = "ВСТАВЬТЕ_СЮДА_ПУБЛИЧНЫЙ_КЛЮЧ";
 
     const DICTIONARY_URLS = [
       "https://raw.githubusercontent.com/Harrix/Russian-Nouns/main/dist/russian_nouns.txt",
@@ -473,16 +491,43 @@
     let gameRecorded = false;
 
     function safeGet(key) {
-      try { return localStorage.getItem(key); }
-      catch { return null; }
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
     }
 
     function safeSet(key, value) {
-      try { localStorage.setItem(key, value); }
-      catch (error) { console.warn("Не удалось сохранить данные в браузере:", error); }
+      try {
+        localStorage.setItem(key, value);
+      } catch (error) {
+        console.warn("Не удалось сохранить данные в браузере:", error);
+      }
     }
 
     let playerName = safeGet(NAME_KEY) || "";
+
+    function isSupabaseConfigured() {
+      return Boolean(
+        SUPABASE_URL.startsWith("https://") &&
+        SUPABASE_KEY &&
+        !SUPABASE_KEY.includes("ВСТАВЬТЕ_СЮДА") &&
+        SUPABASE_KEY.length > 20
+      );
+    }
+
+    function supabaseHeaders() {
+      const headers = { apikey: SUPABASE_KEY };
+
+      // Новый sb_publishable ключ не является JWT,
+      // поэтому его нельзя ставить в Authorization: Bearer.
+      if (!SUPABASE_KEY.startsWith("sb_publishable_")) {
+        headers.Authorization = "Bearer " + SUPABASE_KEY;
+      }
+
+      return headers;
+    }
 
     function normalizeWord(value) {
       return String(value || "")
@@ -508,6 +553,7 @@
           return word.slice(0, -ending.length);
         }
       }
+
       return word;
     }
 
@@ -528,24 +574,28 @@
     function buildIndex() {
       byFirstLetter = new Map();
       rootSet = new Set();
+      wordSet = new Set(dictionary);
 
       for (const word of dictionary) {
-        if (!byFirstLetter.has(word[0])) byFirstLetter.set(word[0], []);
+        if (!byFirstLetter.has(word[0])) {
+          byFirstLetter.set(word[0], []);
+        }
+
         byFirstLetter.get(word[0]).push(word);
         rootSet.add(stem(word));
       }
-
-      wordSet = new Set(dictionary);
     }
 
     function wordExists(word) {
       if (wordSet.has(word)) return true;
+
       const root = stem(word);
       return root.length >= 3 && rootSet.has(root);
     }
 
     function candidatesFor(letter) {
-      return (byFirstLetter.get(letter) || []).filter(word => !used.has(word));
+      return (byFirstLetter.get(letter) || [])
+        .filter(word => !used.has(word));
     }
 
     function readStats() {
@@ -561,9 +611,9 @@
         if (!saved || typeof saved !== "object") return fallback;
 
         return {
-          wins: Number.isFinite(Number(saved.wins)) ? Number(saved.wins) : 0,
-          losses: Number.isFinite(Number(saved.losses)) ? Number(saved.losses) : 0,
-          played: Number.isFinite(Number(saved.played)) ? Number(saved.played) : 0,
+          wins: Number(saved.wins) || 0,
+          losses: Number(saved.losses) || 0,
+          played: Number(saved.played) || 0,
           best: {
             easy: Number(saved.best?.easy) || 0,
             medium: Number(saved.best?.medium) || 0,
@@ -578,10 +628,10 @@
     const stats = readStats();
 
     function updateStatsUI() {
-      $("wins").textContent = stats.wins;
-      $("losses").textContent = stats.losses;
-      $("played").textContent = stats.played;
-      $("best").textContent = stats.best[$("difficulty").value] || 0;
+      $("wins").textContent = String(stats.wins);
+      $("losses").textContent = String(stats.losses);
+      $("played").textContent = String(stats.played);
+      $("best").textContent = String(stats.best[$("difficulty").value] || 0);
       $("playerName").textContent = playerName || "—";
     }
 
@@ -624,21 +674,28 @@
     }
 
     function renderTimer(limit, remaining) {
-      const percent = limit > 0 ? Math.max(0, remaining / limit * 100) : 100;
+      const percent = limit > 0
+        ? Math.max(0, (remaining / limit) * 100)
+        : 100;
+
       $("timerText").textContent = Math.ceil(remaining) + " сек.";
       $("timerFill").style.width = percent + "%";
       $("timerFill").style.background =
-        percent < 25 ? "#fb7185" : "linear-gradient(90deg,#34d399,#38bdf8)";
+        percent < 25
+          ? "#fb7185"
+          : "linear-gradient(90deg,#34d399,#38bdf8)";
     }
 
     function startTimer() {
       stopTimer();
 
       const limit = Number($("timeLimit").value);
+
       if (!limit) {
         $("timerText").textContent = "∞";
         $("timerFill").style.width = "100%";
-        $("timerFill").style.background = "linear-gradient(90deg,#34d399,#38bdf8)";
+        $("timerFill").style.background =
+          "linear-gradient(90deg,#34d399,#38bdf8)";
         return;
       }
 
@@ -646,7 +703,11 @@
       renderTimer(limit, limit);
 
       timerId = setInterval(() => {
-        const remaining = Math.max(0, limit - (Date.now() - turnStartedAt) / 1000);
+        const remaining = Math.max(
+          0,
+          limit - (Date.now() - turnStartedAt) / 1000
+        );
+
         renderTimer(limit, remaining);
 
         if (remaining <= 0) {
@@ -665,6 +726,7 @@
       if (!dictionary.length) return;
 
       stopTimer();
+
       if (botTimeoutId !== null) {
         clearTimeout(botTimeoutId);
         botTimeoutId = null;
@@ -681,12 +743,17 @@
       $("wordInput").value = "";
       enableInput(true);
 
-      const startWord = dictionary[Math.floor(Math.random() * dictionary.length)];
+      const startWord =
+        dictionary[Math.floor(Math.random() * dictionary.length)];
+
       used.add(startWord);
       updateTarget(startWord);
       addHistory(startWord, "bot");
 
-      setMessage("Твой ход! Назови существительное на букву «" + nextLetter + "».");
+      setMessage(
+        "Твой ход! Назови существительное на букву «" + nextLetter + "»."
+      );
+
       startTimer();
       $("wordInput").focus();
     }
@@ -715,6 +782,7 @@
 
       const level = $("difficulty").value;
       stats.best[level] = Math.max(stats.best[level] || 0, score);
+
       saveStats();
       submitScore(score);
     }
@@ -742,6 +810,7 @@
 
       const minimum = scored[0].replies;
       const best = scored.filter(item => item.replies === minimum);
+
       return best[Math.floor(Math.random() * best.length)].word;
     }
 
@@ -752,7 +821,7 @@
       const word = chooseBotWord(letter);
 
       if (!word) {
-        finishGame(true, "🤖 У меня нет подходящего существительного. Ты победил! 🎉");
+        finishGame(true, "🤖 У меня нет подходящего слова. Ты победил! 🎉");
         return;
       }
 
@@ -786,14 +855,17 @@
         setMessage("Слово должно содержать минимум 2 буквы.", "error");
         return;
       }
+
       if (used.has(word)) {
         setMessage("Это слово уже использовалось.", "error");
         return;
       }
+
       if (word[0] !== nextLetter) {
         setMessage("Нужно слово на букву «" + nextLetter + "».", "error");
         return;
       }
+
       if (!wordExists(word)) {
         setMessage("Такого существительного нет в словаре.", "error");
         return;
@@ -814,30 +886,27 @@
       }, 450);
     }
 
-    function isLeaderboardConfigured() {
-      return Boolean(
-        SUPABASE_URL.startsWith("https://") &&
-        SUPABASE_KEY &&
-        SUPABASE_KEY.length > 20
-      );
-    }
-
     async function submitScore(points) {
-      if (!playerName || !isLeaderboardConfigured()) return;
+      if (!playerName || !isSupabaseConfigured()) return;
 
       try {
         const response = await fetch(SUPABASE_URL + "/rest/v1/scores", {
           method: "POST",
           headers: {
-            "apikey": SUPABASE_KEY,
-            "Authorization": "Bearer " + SUPABASE_KEY,
+            ...supabaseHeaders(),
             "Content-Type": "application/json",
             "Prefer": "return=minimal"
           },
-          body: JSON.stringify({ name: playerName, score: points })
+          body: JSON.stringify({
+            name: playerName,
+            score: points
+          })
         });
 
-        if (!response.ok) throw new Error("HTTP " + response.status);
+        if (!response.ok) {
+          const details = await response.text();
+          throw new Error("HTTP " + response.status + ": " + details);
+        }
       } catch (error) {
         console.warn("Не удалось отправить результат в рейтинг:", error);
       }
@@ -847,9 +916,10 @@
       const list = $("topList");
       list.replaceChildren();
 
-      if (!isLeaderboardConfigured()) {
+      if (!isSupabaseConfigured()) {
         const message = document.createElement("p");
-        message.textContent = "Общий рейтинг не настроен. Добавь URL и anon key Supabase в код.";
+        message.textContent =
+          "В коде не указан публичный ключ Supabase. Вставь его в строку SUPABASE_KEY.";
         list.appendChild(message);
         return;
       }
@@ -863,13 +933,13 @@
           "/rest/v1/scores?select=name,score&order=score.desc&limit=50";
 
         const response = await fetch(url, {
-          headers: {
-            "apikey": SUPABASE_KEY,
-            "Authorization": "Bearer " + SUPABASE_KEY
-          }
+          headers: supabaseHeaders()
         });
 
-        if (!response.ok) throw new Error("HTTP " + response.status);
+        if (!response.ok) {
+          const details = await response.text();
+          throw new Error("HTTP " + response.status + ": " + details);
+        }
 
         const rows = await response.json();
         list.replaceChildren();
@@ -899,12 +969,13 @@
           list.appendChild(line);
         });
       } catch (error) {
-        console.error("Не удалось загрузить рейтинг:", error);
+        console.error("Ошибка загрузки рейтинга:", error);
         list.replaceChildren();
 
         const message = document.createElement("p");
         message.className = "error";
-        message.textContent = "Не удалось загрузить рейтинг. Проверь настройки Supabase.";
+        message.textContent =
+          "Не удалось загрузить рейтинг. Проверь ключ, таблицу и политики Supabase.";
         list.appendChild(message);
       }
     }
@@ -935,9 +1006,13 @@
       for (const url of DICTIONARY_URLS) {
         try {
           const response = await fetch(url, { cache: "force-cache" });
-          if (!response.ok) throw new Error("HTTP " + response.status);
+
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
 
           const text = await response.text();
+
           if (!text.trim() || text.trim().startsWith("<")) {
             throw new Error("Получен пустой ответ или HTML вместо словаря");
           }
