@@ -132,10 +132,9 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
 
 /* ====== НАСТРОЙКА SUPABASE ====== */
 const SUPABASE_URL = "https://icpzkpziwimnanirqxmq.supabase.co";   
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljcGprcHppd2ltbmFuaXJxeG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MDAwMDB9.placeholder_key"; // Замени на свой реальный anon key из панели Supabase, если потребуется
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljcGprcHppd2ltbmFuaXJxeG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MDAwMDB9.placeholder_key"; 
 /* ================================= */
 
-/* Сначала грузим чистый список слов по 1 в строке, вторым — запасной CSV */
 const NOUNS_URLS = [
   "https://raw.githubusercontent.com/Harrix/Russian-Nouns/main/dist/russian_nouns.txt",
   "https://raw.githubusercontent.com/Badestrand/russian-dictionary/master/nouns.csv"
@@ -177,7 +176,6 @@ function stem(word) {
 
 function addForm(set, value) { const w = normalizeWord(value); if (isValidWord(w)) set.add(w); }
 
-/* Надёжный парсер словаря: извлекает первое русское слово из строки */
 function buildDictionary(text) {
   const set = new Set();
   for (const line of text.split(/\r?\n/)) {
