@@ -116,7 +116,7 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
   </div>
 </div>
 
-<!-- Модалка: топ -->
+<!-- Модалка: топ-50 с прокруткой -->
 <div class="modal" id="topModal" hidden>
   <div class="modal-card">
     <h2>🏆 Топ-50 игроков</h2>
@@ -132,7 +132,7 @@ button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}bu
 
 /* ====== НАСТРОЙКА SUPABASE ====== */
 const SUPABASE_URL = "https://icpzkpziwimnanirqxmq.supabase.co";   
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljcGprcHppd2ltbmFuaXJxeG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MDAwMDB9.placeholder_key"; // Замени на свой реальный anon key из панели Supabase, если этот не сработает
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljcGprcHppd2ltbmFuaXJxeG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MDAwMDB9.placeholder_key"; // Замени на свой реальный anon key из панели Supabase, если потребуется
 /* ================================= */
 
 const NOUNS_URLS = [
@@ -174,26 +174,15 @@ function stem(word) {
   return w;
 }
 
-function parseCSVLine(line) {
-  const fields = []; let field = "", quoted = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (quoted && line[i + 1] === '"') { field += '"'; i++; } else quoted = !quoted;
-    } else if (char === "," && !quoted) { fields.push(field); field = ""; } else field += char;
-  }
-  fields.push(field); return fields;
-}
-
 function addForm(set, value) { const w = normalizeWord(value); if (isValidWord(w)) set.add(w); }
 
+/* Исправленный парсер словаря (чтобы слова не склеивались) */
 function buildDictionary(text) {
   const set = new Set();
   for (const line of text.split(/\r?\n/)) {
     if (!line.trim()) continue;
-    if (line.includes(",") || line.includes('"')) {
-      for (const col of parseCSVLine(line)) addForm(set, col);
-    } else addForm(set, line);
+    const parts = line.split(/[\t;,]+/);
+    if (parts[0]) addForm(set, parts[0]);
   }
   return [...set];
 }
@@ -325,19 +314,7 @@ function finishGame(playerWon, message) {
 function chooseBotWord(letter) {
   const choices = candidatesFor(letter);
   if (!choices.length) return null;
-  const level = $("difficulty").value;
-  if (level === "easy") return choices[Math.floor(Math.random() * choices.length)];
-  const scored = choices.map(word => {
-    const ending = getLastLetter(word);
-    return {word, replies: candidatesFor(ending).length};
-  }).sort((a, b) => a.replies - b.replies);
-  if (level === "medium") {
-    const pool = scored.slice(0, Math.max(1, Math.ceil(scored.length * 0.35)));
-    return pool[Math.floor(Math.random() * pool.length)].word;
-  }
-  const minimum = scored[0].replies;
-  const best = scored.filter(item => item.replies === minimum);
-  return best[Math.floor(Math.random() * best.length)].word;
+  return choices[Math.floor(Math.random() * choices.length)];
 }
 
 function botTurn(letter) {
@@ -372,7 +349,7 @@ function playWord() {
   window.setTimeout(() => botTurn(getLastLetter(word)), 450);
 }
 
-/* ====== SUPABASE: рейтинг ====== */
+/* ====== SUPABASE: рейтинг ТОП-50 ====== */
 
 async function submitScore(points) {
   if (!playerName) return;
@@ -397,9 +374,6 @@ async function fetchTop() {
   const list = $("topList");
   list.innerHTML = "<p>Загрузка…</p>";
   
-  const modalTitle = document.querySelector("#topModal h2");
-  if (modalTitle) modalTitle.textContent = "🏆 Топ-50 игроков";
-
   try {
     const res = await fetch(
       SUPABASE_URL + "/rest/v1/scores?select=name,score&order=score.desc&limit=50",
